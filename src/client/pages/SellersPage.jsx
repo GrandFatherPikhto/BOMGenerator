@@ -16,6 +16,7 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  Link,
   List,
   ListItemButton,
   ListItemText,
@@ -144,6 +145,13 @@ export default function SellersPage() {
   }, [loadProducts]);
 
   const selected = sellers.find((seller) => seller._id === selectedId) ?? null;
+
+  /** Jump to the card of a shop found by the (possibly cross-shop) search. */
+  function goToSeller(sellerId) {
+    if (sellerId) {
+      setSelectedId(sellerId);
+    }
+  }
 
   function openSellerNew() {
     setSellerDraft(EMPTY_SELLER);
@@ -458,6 +466,7 @@ export default function SellersPage() {
                   <TableHead>
                     <TableRow>
                       <TableCell>Название</TableCell>
+                      <TableCell>Продавец</TableCell>
                       <TableCell>Категория</TableCell>
                       <TableCell align="right">В упаковке</TableCell>
                       <TableCell align="right">Цена упаковки</TableCell>
@@ -472,6 +481,21 @@ export default function SellersPage() {
                     {pageItems.map((product) => (
                       <TableRow key={product.id} hover>
                         <TableCell>{product.name}</TableCell>
+                        <TableCell>
+                          {product.sellerName ? (
+                            <Link
+                              component="button"
+                              type="button"
+                              underline="hover"
+                              title="Перейти к карточке магазина"
+                              onClick={() => goToSeller(product.sellerId)}
+                            >
+                              {product.sellerName}
+                            </Link>
+                          ) : (
+                            ''
+                          )}
+                        </TableCell>
                         <TableCell>{product.category}</TableCell>
                         <TableCell align="right">{product.packQty}</TableCell>
                         <TableCell align="right">{formatMoney(product.packPrice)}</TableCell>
@@ -501,7 +525,7 @@ export default function SellersPage() {
                     ))}
                     {visibleProducts.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={9}>
+                        <TableCell colSpan={10}>
                           <Typography variant="body2" color="text.secondary">
                             {scopedProducts.length > 0
                               ? 'По фильтру ничего не найдено.'
