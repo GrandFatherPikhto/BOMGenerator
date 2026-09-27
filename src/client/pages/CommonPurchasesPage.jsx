@@ -100,6 +100,11 @@ export default function CommonPurchasesPage() {
 
   columns.push(
     {
+      id: 'seller',
+      label: 'Продавец',
+      render: (row) => productOf(row)?.sellerName ?? '',
+    },
+    {
       id: 'product',
       label: 'Товар',
       render: (row) => (
@@ -110,11 +115,6 @@ export default function CommonPurchasesPage() {
           onChange={(c) => patch(row, c)}
         />
       ),
-    },
-    {
-      id: 'seller',
-      label: 'Продавец',
-      render: (row) => productOf(row)?.sellerName ?? '',
     },
     {
       id: 'packQty',

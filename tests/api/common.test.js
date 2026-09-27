@@ -5,6 +5,7 @@ import { after, before, beforeEach, test } from 'node:test';
 
 import request from 'supertest';
 
+import { BomLine } from '../../src/server/models/BomLine.js';
 import {
   connectTestDb,
   createSellerWithProduct,
@@ -105,6 +106,44 @@ test('seller and shipping set on the common sheet survive a re-import', async ()
   const afterRow = findLine(after.body, (line) => line.value === '100 nF');
   assert.equal(afterRow.productId, product.id);
   assert.equal(afterRow.shippingCost, 12);
+});
+
+test('the product of a common line is not carried over to the common sheet', async () => {
+  const boardA = await importBoard('Board A', 'Board-A.csv', 2);
+  const line = await markCommon(boardA.id, (row) => row.value === '100 nF');
+
+  const { product } = await createSellerWithProduct(
+    app,
+    { name: 'Shop' },
+    { packQty: 10, packPrice: 7, shippingCost: 3 },
+  );
+
+  await request(app)
+    .put(`/api/boards/${boardA.id}/lines/${line.id}`)
+    .send({ productId: product.id });
+
+  // The line keeps its own product, so it comes back when "Общие" is unchecked.
+  const stored = await BomLine.findById(line.id).lean();
+  assert.equal(String(stored.productId), product.id);
+
+  // While the row is common, the product is chosen on the "Общие закупки" sheet
+  // only: neither the board row nor the common row shows the line's product.
+  const view = await request(app).get(`/api/boards/${boardA.id}/lines`);
+  assert.equal(findLine(view.body, (row) => row.id === line.id).productId, null);
+
+  const common = await request(app).get('/api/common-purchases');
+  const commonRow = findLine(common.body, (row) => row.value === '100 nF');
+  assert.equal(commonRow.productId, null);
+  assert.equal(commonRow.packs, null);
+  assert.equal(commonRow.cost, null);
+
+  await request(app)
+    .put(`/api/boards/${boardA.id}/lines/${line.id}`)
+    .send({ common: false });
+  const back = await request(app).get(`/api/boards/${boardA.id}/lines`);
+  const restored = findLine(back.body, (row) => row.id === line.id);
+  assert.equal(restored.productId, product.id);
+  assert.equal(restored.shippingCost, 3);
 });
 
 test('manual "Докупить" lines work without a CSV and join common purchases', async () => {

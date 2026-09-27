@@ -113,16 +113,16 @@ export default function ManualPage() {
       render: (row) => <CommonCell row={row} onChange={(c) => patch(row, c)} />,
     },
     {
+      id: 'seller',
+      label: 'Продавец',
+      render: (row) => productOf(row)?.sellerName ?? '',
+    },
+    {
       id: 'product',
       label: 'Товар',
       render: (row) => (
         <ProductCell row={row} products={products} onChange={(c) => patch(row, c)} />
       ),
-    },
-    {
-      id: 'seller',
-      label: 'Продавец',
-      render: (row) => productOf(row)?.sellerName ?? '',
     },
     {
       id: 'packQty',

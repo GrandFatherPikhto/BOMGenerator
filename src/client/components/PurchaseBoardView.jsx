@@ -86,11 +86,20 @@ export default function PurchaseBoardView({
       render: (row) => <CommonCell row={row} onChange={patch(row)} />,
     },
     {
+      id: 'seller',
+      label: 'Продавец',
+      render: (row) => productOf(row)?.sellerName ?? '',
+    },
+    {
       id: 'product',
       label: 'Товар',
       render: (row) =>
         row.common ? (
-          <ProductLabel product={productOf(row)} />
+          <Tooltip title="Товар для строки «Общие» выбирается на вкладке «Общие закупки»">
+            <span>
+              {productOf(row) ? <ProductLabel product={productOf(row)} /> : '—'}
+            </span>
+          </Tooltip>
         ) : (
           <ProductCell
             row={row}
@@ -99,11 +108,6 @@ export default function PurchaseBoardView({
             onChange={patch(row)}
           />
         ),
-    },
-    {
-      id: 'seller',
-      label: 'Продавец',
-      render: (row) => productOf(row)?.sellerName ?? '',
     },
     {
       id: 'packQty',
