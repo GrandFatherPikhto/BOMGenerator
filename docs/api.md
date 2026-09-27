@@ -11,7 +11,7 @@ return `{ "error": "...", "details": [...] }` with an appropriate status code.
 | `POST` | `/boards` | Create an empty board `{name, count?}` |
 | `POST` | `/boards/import` | Import/re-import a CSV (multipart: `file`, `name`, `excludeDnp?`, `excludeFromBom?`) |
 | `GET` | `/boards/:id` | One board |
-| `PUT` | `/boards/:id` | Update `{name?, count?}` |
+| `PUT` | `/boards/:id` | Update `{name?, count?, enabled?, inCommon?}` |
 | `DELETE` | `/boards/:id` | Delete a board and its lines (service board not allowed) |
 | `GET` | `/boards/:id/lines` | Grouped rows with calculated columns and totals |
 | `GET` | `/boards/:id/export` | Export the purchase table (`?format=xlsx\|csv`) |
@@ -124,6 +124,10 @@ Invalid regex example response (HTTP 400):
 
 `by_board` adds a `byBoard` map to each row (`{"Board A": 2, "Board B": 3}`)
 and a `boardNames` array to the response.
+
+Only boards with **both** flags on (`enabled` and `inCommon`) contribute here.
+A board can be switched on/off via `PUT /boards/:id` (`enabled`, `inCommon`);
+this is the "common purchases" configurator driven from the "Платы" list.
 
 ## Health
 

@@ -34,6 +34,8 @@ erDiagram
 | `sourceFile` | String | **Unique (sparse)**. Re-import key; omitted for the "Докупить" board |
 | `count` | Number | Boards in the product; multiplies "Итого" (`min 1`) |
 | `isService` | Boolean | True only for the single "Докупить" board |
+| `enabled` | Boolean | "Включено" — the board takes part in the app (selectors, common) |
+| `inCommon` | Boolean | "В общих закупках" — its `Общие` rows feed the common sheet |
 | `importedAt` | Date | Last import time |
 
 ## `BomLine`

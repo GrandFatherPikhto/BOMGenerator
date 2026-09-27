@@ -49,6 +49,10 @@ design notes and the specification.
   all boards (accounting for each board's quantity), in `merged` or
   `by_board` modes. Seller/shipping set here survive re-imports.
 - **"Докупить"**: a service board for positions bought outside any board.
+- **Common-purchases configurator**: each board has two flags on the "Платы"
+  list — "Включено" (participates in the app) and "В общих закупках"
+  (contributes to the common sheet). Only enabled boards appear in the "Закупки"
+  selector; the common sheet uses boards where both flags are on.
 - **Per-position note** ("Описание"): free text kept across re-imports, edited on
   the "Закупки" tab.
 - **Export** the purchase table of a board to Excel (`.xlsx`) or CSV from the
@@ -107,8 +111,9 @@ the Python project) and creates the "Докупить" service board.
 
 ## Screens
 
-- **Платы** — board list, import dialog (file picker + drag-and-drop, board name,
-  DNP / Exclude-from-BOM overrides), create/delete.
+- **Платы** — board list with the "Включено" / "В общих закупках" checkboxes,
+  import dialog (file picker + drag-and-drop, board name, DNP /
+  Exclude-from-BOM overrides), create/delete.
 - **Закупки** — the editable purchase table of a board picked in the header:
   "Плат в изделии", inline seller / `Общие` / shipping / note editing, the
   "Итого" that excludes "Общие" rows, and **Excel/CSV export**.
