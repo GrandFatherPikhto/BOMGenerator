@@ -103,11 +103,12 @@ test('re-import keeps hand-filled fields and removes missing lines', async () =>
   // Re-import the same file name with changed quantities.
   const second = await importBoard(CSV_V2, 'Test Board', 'Test-Board.csv');
   assert.equal(second.body.board.id, boardId); // same board, not a new one
+  // R1 and "100 nF" (C1+C2) are updated, C3 (1 uF) is added, the LED removed.
   assert.deepEqual(second.body.summary, {
     added: 1,
     updated: 2,
     removed: 1,
-    total: 4,
+    total: 3,
   });
 
   const after = await request(app).get(`/api/boards/${boardId}/lines`);

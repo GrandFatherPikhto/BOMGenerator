@@ -7,8 +7,12 @@ import { ensureServiceBoard } from '../../src/server/services/boardService.js';
 import { seedDefaults } from '../../src/server/services/categoryService.js';
 import { getSettings } from '../../src/server/services/settingsService.js';
 
-export const TEST_URI =
+// Each test file runs in its own process, so a per-pid database keeps parallel
+// files from wiping each other's data.
+const BASE_TEST_URI =
   process.env.MONGODB_URI_TEST || 'mongodb://127.0.0.1:27017/bom-generator-test';
+
+export const TEST_URI = `${BASE_TEST_URI}-${process.pid}`;
 
 export async function connectTestDb() {
   if (mongoose.connection.readyState === 0) {
@@ -17,6 +21,9 @@ export async function connectTestDb() {
 }
 
 export async function disconnectTestDb() {
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.connection.dropDatabase();
+  }
   await mongoose.disconnect();
 }
 
