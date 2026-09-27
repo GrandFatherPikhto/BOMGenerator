@@ -1,4 +1,13 @@
-import { Paper, Stack, Tooltip, Typography } from '@mui/material';
+import { useMemo, useState } from 'react';
+
+import {
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 
 import { formatMoney } from '../format.js';
 import {
@@ -6,21 +15,25 @@ import {
   DescriptionCell,
   LinesTable,
   PacksCell,
-  SellerCell,
+  ProductCell,
+  ProductLabel,
   ShippingCell,
 } from './LinesTable.jsx';
 import ReferenceDesignators from './ReferenceDesignators.jsx';
-import SellerLink from './SellerLink.jsx';
 
 const COMMON_ROW_SX = { backgroundColor: '#f5f5f5' };
 
 /**
  * Editable purchase table of one board: category blocks with inline editing of
- * the seller, the "Общие" flag, packages, shipping and the note, plus the
+ * the product, the "Общие" flag, packages, shipping and the note, plus the
  * "Итого" totals.
  *
+ * The seller is not edited per row: it is derived from the chosen product (a
+ * seller has many products). The "Продавец" control above the table is a filter
+ * that narrows the product dropdown.
+ *
  * A row marked "Общие" is purchased on the "Common purchases" sheet: its
- * seller, packages, shipping and cost are shown read-only here (the need is
+ * product, packages, shipping and cost are shown read-only here (the need is
  * aggregated across all boards) and are edited there. Reference designators are
  * revealed per row with the arrow (collapsed by default).
  */
@@ -28,11 +41,31 @@ export default function PurchaseBoardView({
   board,
   blocks,
   totals,
-  sellers,
+  products,
   onPatchLine,
 }) {
-  const sellerMap = new Map(sellers.map((seller) => [seller._id, seller]));
-  const sellerOf = (row) => (row.sellerId ? sellerMap.get(row.sellerId) : null);
+  const [sellerFilter, setSellerFilter] = useState('');
+
+  const productMap = useMemo(
+    () => new Map(products.map((product) => [product.id, product])),
+    [products],
+  );
+  const productOf = (row) =>
+    row.productId ? productMap.get(row.productId) ?? null : null;
+
+  // The seller filter lists only sellers that actually have products.
+  const sellerOptions = useMemo(() => {
+    const map = new Map();
+    for (const product of products) {
+      if (product.sellerId && !map.has(product.sellerId)) {
+        map.set(product.sellerId, product.sellerName);
+      }
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
   const patch = (row) => (changes) => onPatchLine(row.id, changes);
 
   const columns = [
@@ -53,29 +86,36 @@ export default function PurchaseBoardView({
       render: (row) => <CommonCell row={row} onChange={patch(row)} />,
     },
     {
-      id: 'seller',
-      label: 'Продавец',
+      id: 'product',
+      label: 'Товар',
       render: (row) =>
         row.common ? (
-          <Stack direction="row" spacing={0.5} alignItems="center">
-            <span>{sellerOf(row)?.name ?? ''}</span>
-            <SellerLink seller={sellerOf(row)} />
-          </Stack>
+          <ProductLabel product={productOf(row)} />
         ) : (
-          <SellerCell row={row} sellers={sellers} onChange={patch(row)} />
+          <ProductCell
+            row={row}
+            products={products}
+            sellerFilter={sellerFilter}
+            onChange={patch(row)}
+          />
         ),
+    },
+    {
+      id: 'seller',
+      label: 'Продавец',
+      render: (row) => productOf(row)?.sellerName ?? '',
     },
     {
       id: 'packQty',
       label: 'В упаковке',
       align: 'right',
-      render: (row) => sellerOf(row)?.packQty ?? '',
+      render: (row) => productOf(row)?.packQty ?? '',
     },
     {
       id: 'packPrice',
       label: 'Цена упаковки',
       align: 'right',
-      render: (row) => formatMoney(sellerOf(row)?.packPrice),
+      render: (row) => formatMoney(productOf(row)?.packPrice),
     },
     {
       id: 'packs',
@@ -116,6 +156,27 @@ export default function PurchaseBoardView({
 
   return (
     <>
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
+        <TextField
+          select
+          size="small"
+          label="Продавец (фильтр)"
+          value={sellerFilter}
+          onChange={(event) => setSellerFilter(event.target.value)}
+          sx={{ minWidth: 240 }}
+        >
+          <MenuItem value="">Все продавцы</MenuItem>
+          {sellerOptions.map((seller) => (
+            <MenuItem key={seller.id} value={seller.id}>
+              {seller.name}
+            </MenuItem>
+          ))}
+        </TextField>
+        <Typography variant="caption" color="text.secondary">
+          Фильтр сужает список товаров в колонке «Товар».
+        </Typography>
+      </Stack>
+
       <LinesTable
         blocks={blocks}
         columns={columns}
@@ -132,7 +193,7 @@ export default function PurchaseBoardView({
         </Stack>
         <Typography variant="caption" color="text.secondary">
           Позиции с галочкой «Общие» не входят в «Итого» и закупаются на листе
-          «Общие закупки» (там же задаются продавец, упаковки и доставка).
+          «Общие закупки» (там же задаются товар, упаковки и доставка).
         </Typography>
       </Paper>
     </>

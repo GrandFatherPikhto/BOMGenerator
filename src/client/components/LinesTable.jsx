@@ -3,11 +3,10 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
+  Autocomplete,
   Checkbox,
   IconButton,
-  MenuItem,
   Paper,
-  Select,
   Stack,
   Table,
   TableBody,
@@ -16,6 +15,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Typography,
 } from '@mui/material';
 
 import Pagination from './Pagination.jsx';
@@ -230,30 +230,73 @@ export function LinesTable({ blocks, columns, renderDetail, rowSx, resetKey }) {
 
 const PAGE_SIZE_DEFAULT = 20;
 
-/** Seller dropdown bound to a row, with a link to the seller page. */
-export function SellerCell({ row, sellers, onChange }) {
-  const selected = row.sellerId
-    ? sellers.find((seller) => seller._id === row.sellerId) ?? null
+/** Link to a product page; falls back to the seller page when it has no URL. */
+export function ProductLink({ product }) {
+  const url = product?.url || product?.sellerUrl || '';
+  if (!url) {
+    return null;
+  }
+  return (
+    <SellerLink
+      url={url}
+      name={product?.name}
+      title={`Открыть товар${product?.name ? `: ${product.name}` : ''}`}
+    />
+  );
+}
+
+/**
+ * Searchable product picker bound to a row. `sellerFilter` (a seller id or '')
+ * narrows the list; the free-text search matches the product name/url or the
+ * seller name/url, so an offer can be found either way.
+ */
+export function ProductCell({ row, products, sellerFilter, onChange }) {
+  const options = sellerFilter
+    ? products.filter((product) => product.sellerId === sellerFilter)
+    : products;
+  const selected = row.productId
+    ? products.find((product) => product.id === row.productId) ?? null
     : null;
 
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
-      <Select
+      <Autocomplete
         size="small"
-        variant="standard"
-        displayEmpty
-        value={row.sellerId || ''}
-        onChange={(event) => onChange({ sellerId: event.target.value || null })}
-        sx={{ minWidth: 140 }}
-      >
-        <MenuItem value="">—</MenuItem>
-        {sellers.map((seller) => (
-          <MenuItem key={seller._id} value={seller._id}>
-            {seller.name}
-          </MenuItem>
-        ))}
-      </Select>
-      <SellerLink seller={selected} />
+        options={options}
+        value={selected}
+        onChange={(event, value) => onChange({ productId: value ? value.id : null })}
+        getOptionLabel={(option) => option.name}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+        filterOptions={(list, state) => {
+          const needle = state.inputValue.trim().toLowerCase();
+          if (!needle) {
+            return list;
+          }
+          return list.filter((product) =>
+            [product.name, product.url, product.sellerName, product.sellerUrl]
+              .filter(Boolean)
+              .some((text) => text.toLowerCase().includes(needle)),
+          );
+        }}
+        renderInput={(params) => (
+          <TextField {...params} variant="standard" placeholder="—" />
+        )}
+        sx={{ minWidth: 220 }}
+      />
+      <ProductLink product={selected} />
+    </Stack>
+  );
+}
+
+/** Read-only product name plus a link — used for the "Общие" rows. */
+export function ProductLabel({ product }) {
+  if (!product) {
+    return null;
+  }
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <Typography variant="body2">{product.name}</Typography>
+      <ProductLink product={product} />
     </Stack>
   );
 }

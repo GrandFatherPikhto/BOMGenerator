@@ -64,6 +64,9 @@ export const api = {
     update: (id, payload) =>
       request(`/sellers/${id}`, { method: 'PUT', body: payload }),
     remove: (id) => request(`/sellers/${id}`, { method: 'DELETE' }),
+    products: (id) => request(`/sellers/${id}/products`),
+    addProduct: (id, payload) =>
+      request(`/sellers/${id}/products`, { method: 'POST', body: payload }),
     importSheets: (file) => {
       const form = new FormData();
       form.append('file', file, file.name);
@@ -81,6 +84,13 @@ export const api = {
       }
       return request('/sellers/import', { method: 'POST', body: form, isForm: true });
     },
+  },
+  products: {
+    list: (sellerId) =>
+      request(sellerId ? `/products?sellerId=${sellerId}` : '/products'),
+    update: (id, payload) =>
+      request(`/products/${id}`, { method: 'PUT', body: payload }),
+    remove: (id) => request(`/products/${id}`, { method: 'DELETE' }),
   },
   categories: {
     list: () => request('/categories'),

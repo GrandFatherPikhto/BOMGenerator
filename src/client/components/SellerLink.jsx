@@ -2,21 +2,23 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { IconButton } from '@mui/material';
 
 /**
- * A small "open the seller page" link, shown only when the seller has a URL.
- * Used next to the seller dropdown so a price/link can be checked quickly.
+ * A small "open the page" link, rendered only when a URL is known.
+ *
+ * Products carry their own URL; when a product has none the seller URL is used
+ * as a fallback, so the caller passes the already-resolved `url`.
  */
-export default function SellerLink({ seller }) {
-  if (!seller?.url) {
+export default function SellerLink({ url, name, title }) {
+  if (!url) {
     return null;
   }
   return (
     <IconButton
       size="small"
       component="a"
-      href={seller.url}
+      href={url}
       target="_blank"
       rel="noreferrer"
-      title={`Открыть страницу продавца${seller.name ? `: ${seller.name}` : ''}`}
+      title={title ?? `Открыть ссылку${name ? `: ${name}` : ''}`}
     >
       <OpenInNewIcon fontSize="inherit" />
     </IconButton>

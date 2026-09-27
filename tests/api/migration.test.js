@@ -64,6 +64,12 @@ test('migration turns a legacy seller into a product and repoints lines', async 
   assert.equal(String(updated.productId), String(product._id));
   assert.equal(updated.sellerId, undefined);
 
+  // The legacy packaging fields moved to the product and left the seller.
+  const migratedSeller = await Seller.findById(sellerId).lean();
+  assert.equal(migratedSeller.packQty, undefined);
+  assert.equal(migratedSeller.packPrice, undefined);
+  assert.equal(migratedSeller.category, undefined);
+
   // Re-running the migration changes nothing.
   const again = await migrateSellersToProducts();
   assert.equal(again.productsCreated, 0);

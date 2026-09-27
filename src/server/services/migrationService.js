@@ -49,6 +49,14 @@ export async function migrateSellersToProducts() {
       { strict: false },
     );
     overridesUpdated += overrides.modifiedCount ?? 0;
+
+    // The packaging and the category hint now live on the product; drop the
+    // stale copies from the seller so the documents stay clean.
+    await Seller.updateOne(
+      { _id: seller._id },
+      { $unset: { packQty: '', packPrice: '', category: '', footprint: '' } },
+      { strict: false },
+    );
   }
 
   return {

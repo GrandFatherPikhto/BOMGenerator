@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   Alert,
   Box,
   CircularProgress,
+  MenuItem,
   Paper,
   Stack,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -15,25 +17,32 @@ import { api } from '../lib/apiClient.js';
 import {
   LinesTable,
   PacksCell,
-  SellerCell,
+  ProductCell,
   ShippingCell,
 } from '../components/LinesTable.jsx';
 import { formatMoney } from '../format.js';
 
+/**
+ * "Общие закупки": the shared need of every board position marked "Общие",
+ * aggregated by match key. Here (and only here) the product, packages and
+ * shipping of those rows are chosen; the seller follows from the product, and
+ * the "Продавец" control narrows the product list.
+ */
 export default function CommonPurchasesPage() {
   const [mode, setMode] = useState('merged');
   const [view, setView] = useState(null);
-  const [sellers, setSellers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [sellerFilter, setSellerFilter] = useState('');
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
     try {
-      const [viewData, sellerList] = await Promise.all([
+      const [viewData, productList] = await Promise.all([
         api.commonPurchases.list(mode),
-        api.sellers.list(),
+        api.products.list(),
       ]);
       setView(viewData);
-      setSellers(sellerList);
+      setProducts(productList);
     } catch (loadError) {
       setError(loadError.message);
     }
@@ -52,8 +61,25 @@ export default function CommonPurchasesPage() {
     }
   }
 
-  const sellerMap = new Map(sellers.map((seller) => [seller._id, seller]));
-  const sellerOf = (row) => (row.sellerId ? sellerMap.get(row.sellerId) : null);
+  const productMap = useMemo(
+    () => new Map(products.map((product) => [product.id, product])),
+    [products],
+  );
+  const productOf = (row) =>
+    row.productId ? productMap.get(row.productId) ?? null : null;
+
+  // The seller filter lists only sellers that actually have products.
+  const sellerOptions = useMemo(() => {
+    const map = new Map();
+    for (const product of products) {
+      if (product.sellerId && !map.has(product.sellerId)) {
+        map.set(product.sellerId, product.sellerName);
+      }
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
 
   const columns = [
     { id: 'value', label: 'Наименование' },
@@ -74,17 +100,33 @@ export default function CommonPurchasesPage() {
 
   columns.push(
     {
+      id: 'product',
+      label: 'Товар',
+      render: (row) => (
+        <ProductCell
+          row={row}
+          products={products}
+          sellerFilter={sellerFilter}
+          onChange={(c) => patch(row, c)}
+        />
+      ),
+    },
+    {
       id: 'seller',
       label: 'Продавец',
-      render: (row) => (
-        <SellerCell row={row} sellers={sellers} onChange={(c) => patch(row, c)} />
-      ),
+      render: (row) => productOf(row)?.sellerName ?? '',
     },
     {
       id: 'packQty',
       label: 'В упаковке',
       align: 'right',
-      render: (row) => sellerOf(row)?.packQty ?? '',
+      render: (row) => productOf(row)?.packQty ?? '',
+    },
+    {
+      id: 'packPrice',
+      label: 'Цена упаковки',
+      align: 'right',
+      render: (row) => formatMoney(productOf(row)?.packPrice),
     },
     {
       id: 'packs',
@@ -138,6 +180,27 @@ export default function CommonPurchasesPage() {
         </Box>
       ) : (
         <>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
+            <TextField
+              select
+              size="small"
+              label="Продавец (фильтр)"
+              value={sellerFilter}
+              onChange={(event) => setSellerFilter(event.target.value)}
+              sx={{ minWidth: 240 }}
+            >
+              <MenuItem value="">Все продавцы</MenuItem>
+              {sellerOptions.map((seller) => (
+                <MenuItem key={seller.id} value={seller.id}>
+                  {seller.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Typography variant="caption" color="text.secondary">
+              Фильтр сужает список товаров в колонке «Товар».
+            </Typography>
+          </Stack>
+
           <LinesTable blocks={view.blocks} columns={columns} resetKey={mode} />
           <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>
             <Stack direction="row" justifyContent="flex-end" spacing={4}>

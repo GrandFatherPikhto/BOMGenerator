@@ -25,7 +25,7 @@ export default function PurchasesPage() {
   const boardId = searchParams.get('board') || '';
 
   const [boards, setBoards] = useState([]);
-  const [sellers, setSellers] = useState([]);
+  const [products, setProducts] = useState([]);
   const [view, setView] = useState(null);
   const [count, setCount] = useState(1);
   const [error, setError] = useState(null);
@@ -34,13 +34,13 @@ export default function PurchasesPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [boardList, sellerList] = await Promise.all([
+        const [boardList, productList] = await Promise.all([
           api.boards.list(),
-          api.sellers.list(),
+          api.products.list(),
         ]);
         // Only enabled boards take part in the purchase work.
         setBoards(boardList.filter((board) => !board.isService && board.enabled));
-        setSellers(sellerList);
+        setProducts(productList);
       } catch (loadError) {
         setError(loadError.message);
       } finally {
@@ -188,7 +188,7 @@ export default function PurchasesPage() {
           board={view.board}
           blocks={view.blocks}
           totals={view.totals}
-          sellers={sellers}
+          products={products}
           onPatchLine={patchLine}
         />
       ) : (

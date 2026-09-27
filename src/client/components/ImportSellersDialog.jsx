@@ -19,10 +19,13 @@ import { api } from '../lib/apiClient.js';
 const XLSX_RE = /\.(xlsx|xlsm)$/i;
 
 /**
- * Import a seller list from CSV or Excel.
+ * Import sellers and their products from CSV or Excel.
  *
- * Sellers are matched by URL: an existing one gets only its name updated, a new
- * one is created with every column. For an Excel file the user picks the sheet.
+ * Two layouts are accepted: the two-level one (seller + product on the same
+ * row) and the legacy one-level one (a row per shop item, which becomes a
+ * seller plus a product with the same name and URL). A product is matched by
+ * URL, otherwise by name within its seller; only the name and URL are updated.
+ * For an Excel file the user picks the sheet.
  */
 export default function ImportSellersDialog({ open, onClose, onSubmit }) {
   const [file, setFile] = useState(null);
@@ -146,8 +149,24 @@ export default function ImportSellersDialog({ open, onClose, onSubmit }) {
           )}
 
           <Alert severity="info">
-            Существующие продавцы находятся по URL: обновляется только название.
-            Количество, цена, доставка и прочие поля не затрагиваются.
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+              Ожидаемые колонки (по названию, порядок не важен)
+            </Typography>
+            <Typography variant="body2" component="div">
+              1. Новый формат: <em>Продавец</em>, <em>URL продавца</em>,{' '}
+              <em>Товар</em>, <em>URL товара</em>, <em>Кол-во в упаковке</em>,{' '}
+              <em>Цена за упаковку</em>, <em>Категория</em>, <em>Описание</em>.
+            </Typography>
+            <Typography variant="body2" component="div" sx={{ mt: 0.5 }}>
+              2. Старый формат: <em>Название</em>, <em>Категория</em>, <em>URL</em>,{' '}
+              <em>Кол-во в упаковке</em>, <em>Цена за упаковку</em>,{' '}
+              <em>Доставка</em>, <em>Описание</em> — каждая строка заводит продавца
+              и товар с одинаковыми названием и URL.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Товар находится по URL, иначе по названию внутри продавца;
+              обновляются только название и URL, упаковка и цена не затрагиваются.
+            </Typography>
           </Alert>
 
           {error && <Alert severity="error">{error}</Alert>}

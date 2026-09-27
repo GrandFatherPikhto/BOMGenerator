@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -22,16 +22,21 @@ import { api } from '../lib/apiClient.js';
 import {
   CommonCell,
   LinesTable,
+  ProductCell,
   QuantityCell,
-  SellerCell,
   ShippingCell,
 } from '../components/LinesTable.jsx';
 import { formatMoney } from '../format.js';
 
+/**
+ * "Докупить": hand-made positions stored on the service board. The product is
+ * picked the same way as in the purchase tables (searchable dropdown, seller
+ * derived from the product).
+ */
 export default function ManualPage() {
   const [serviceId, setServiceId] = useState(null);
   const [view, setView] = useState(null);
-  const [sellers, setSellers] = useState([]);
+  const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draft, setDraft] = useState({ value: '', footprint: '', qty: 1, reference: '' });
@@ -41,12 +46,12 @@ export default function ManualPage() {
       const boards = await api.boards.list();
       const service = boards.find((board) => board.isService);
       setServiceId(service?.id ?? null);
-      const [viewData, sellerList] = await Promise.all([
+      const [viewData, productList] = await Promise.all([
         service ? api.boards.view(service.id) : Promise.resolve(null),
-        api.sellers.list(),
+        api.products.list(),
       ]);
       setView(viewData);
-      setSellers(sellerList);
+      setProducts(productList);
     } catch (loadError) {
       setError(loadError.message);
     }
@@ -85,8 +90,12 @@ export default function ManualPage() {
     }
   }
 
-  const sellerMap = new Map(sellers.map((seller) => [seller._id, seller]));
-  const sellerOf = (row) => (row.sellerId ? sellerMap.get(row.sellerId) : null);
+  const productMap = useMemo(
+    () => new Map(products.map((product) => [product.id, product])),
+    [products],
+  );
+  const productOf = (row) =>
+    row.productId ? productMap.get(row.productId) ?? null : null;
 
   const columns = [
     { id: 'reference', label: 'Обозначение' },
@@ -104,17 +113,22 @@ export default function ManualPage() {
       render: (row) => <CommonCell row={row} onChange={(c) => patch(row, c)} />,
     },
     {
+      id: 'product',
+      label: 'Товар',
+      render: (row) => (
+        <ProductCell row={row} products={products} onChange={(c) => patch(row, c)} />
+      ),
+    },
+    {
       id: 'seller',
       label: 'Продавец',
-      render: (row) => (
-        <SellerCell row={row} sellers={sellers} onChange={(c) => patch(row, c)} />
-      ),
+      render: (row) => productOf(row)?.sellerName ?? '',
     },
     {
       id: 'packQty',
       label: 'В упаковке',
       align: 'right',
-      render: (row) => sellerOf(row)?.packQty ?? '',
+      render: (row) => productOf(row)?.packQty ?? '',
     },
     { id: 'packs', label: 'Упаковок', align: 'right', render: (row) => row.packs ?? '' },
     {
