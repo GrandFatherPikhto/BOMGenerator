@@ -141,10 +141,11 @@ the Python project) and creates the "Докупить" service board.
   selected shop on the right (CRUD with paging), plus import from CSV/Excel
   (sheet picker for XLSX, summary and warnings after import). Above the table
   there is a filter by **name** and by **category** (each field has a "регекс"
-  checkbox; an empty field means "no condition", both mean AND). The "только
-  выбранный магазин" checkbox keeps the search inside the selected shop; with it
-  off the search covers every shop. The shop name in the table is a link that
-  selects that seller and shows its card. A product
+  checkbox; an empty field means "no condition", both mean AND). The table has
+  two modes: **"Товары магазина"** — the products of the selected shop (no
+  "Продавец" column) and **"Поиск по всем магазинам"** — a search over the whole
+  catalogue, with a "Продавец" column whose shop name is a link: clicking it opens
+  that shop and returns the table to the shop mode. A product
   category is picked from a dropdown built from the categories already typed and
   the "Категории разбора" names, and a new one can still be typed.
 - **Категории разбора** — CRUD table; regex errors are shown in the form before

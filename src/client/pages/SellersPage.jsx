@@ -29,6 +29,8 @@ import {
   TableHead,
   TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 
@@ -78,8 +80,10 @@ export default function SellersPage() {
   const [nameRegex, setNameRegex] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [categoryRegex, setCategoryRegex] = useState(false);
-  // Search scope: the products of the selected shop only, or of every shop.
-  const [onlySelectedSeller, setOnlySelectedSeller] = useState(true);
+  // "shop" — the products of the selected shop; "all" — a search across every
+  // shop. Two explicit modes keep the master-detail view and the catalogue
+  // search apart, instead of one checkbox that changes what the table means.
+  const [mode, setMode] = useState('shop');
 
   const filter = useMemo(
     () =>
@@ -92,8 +96,12 @@ export default function SellersPage() {
     [nameFilter, nameRegex, categoryFilter, categoryRegex],
   );
   const scopedProducts = useMemo(
-    () => scopeProducts(products, { sellerId: selectedId, onlySelectedSeller }),
-    [products, selectedId, onlySelectedSeller],
+    () =>
+      scopeProducts(products, {
+        sellerId: selectedId,
+        onlySelectedSeller: mode === 'shop',
+      }),
+    [products, selectedId, mode],
   );
   const visibleProducts = useMemo(
     () => (filter.active ? scopedProducts.filter(filter.match) : scopedProducts),
@@ -146,10 +154,14 @@ export default function SellersPage() {
 
   const selected = sellers.find((seller) => seller._id === selectedId) ?? null;
 
-  /** Jump to the card of a shop found by the (possibly cross-shop) search. */
+  /**
+   * Jump to a shop found by the cross-shop search: select it and return to
+   * "products of the shop", which is what the click promises.
+   */
   function goToSeller(sellerId) {
     if (sellerId) {
       setSelectedId(sellerId);
+      setMode('shop');
     }
   }
 
@@ -239,6 +251,67 @@ export default function SellersPage() {
     setImportResult(result);
     await loadSellers();
   }
+
+  // The "Продавец" column only makes sense when the search spans many shops.
+  const columns = [
+    { id: 'name', label: 'Название', render: (product) => product.name },
+    ...(mode === 'all'
+      ? [
+          {
+            id: 'seller',
+            label: 'Продавец',
+            render: (product) =>
+              product.sellerName ? (
+                <Link
+                  component="button"
+                  type="button"
+                  underline="hover"
+                  title="Перейти к товарам этого магазина"
+                  onClick={() => goToSeller(product.sellerId)}
+                >
+                  {product.sellerName}
+                </Link>
+              ) : (
+                ''
+              ),
+          },
+        ]
+      : []),
+    { id: 'category', label: 'Категория', render: (product) => product.category },
+    {
+      id: 'packQty',
+      label: 'В упаковке',
+      align: 'right',
+      render: (product) => product.packQty,
+    },
+    {
+      id: 'packPrice',
+      label: 'Цена упаковки',
+      align: 'right',
+      render: (product) => formatMoney(product.packPrice),
+    },
+    {
+      id: 'shippingCost',
+      label: 'Доставка',
+      align: 'right',
+      render: (product) => formatMoney(product.shippingCost),
+    },
+    {
+      id: 'url',
+      label: 'URL',
+      render: (product) =>
+        product.url ? (
+          <a href={product.url} target="_blank" rel="noreferrer">
+            ссылка
+          </a>
+        ) : (
+          ''
+        ),
+    },
+    { id: 'footprint', label: 'Footprint', render: (product) => product.footprint },
+    { id: 'description', label: 'Описание', render: (product) => product.description },
+  ];
+  const columnSpan = columns.length + 1; // plus the actions column
 
   return (
     <Box>
@@ -378,7 +451,7 @@ export default function SellersPage() {
                 sx={{ mb: 1 }}
               >
                 <Typography variant="subtitle1">
-                  Товары (
+                  {mode === 'all' ? 'Найдено по всем магазинам' : 'Товары магазина'} (
                   {filter.active
                     ? `${visibleProducts.length} из ${scopedProducts.length}`
                     : scopedProducts.length}
@@ -448,71 +521,43 @@ export default function SellersPage() {
                   }
                   label="регекс"
                 />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={onlySelectedSeller}
-                      onChange={(event) => setOnlySelectedSeller(event.target.checked)}
-                    />
-                  }
-                  label="только выбранный магазин"
+                <ToggleButtonGroup
+                  size="small"
+                  exclusive
+                  value={mode}
+                  onChange={(event, value) => {
+                    if (value) {
+                      setMode(value);
+                      setPage(0);
+                    }
+                  }}
                   sx={{ ml: 2 }}
-                />
+                >
+                  <ToggleButton value="shop">Товары магазина</ToggleButton>
+                  <ToggleButton value="all">Поиск по всем магазинам</ToggleButton>
+                </ToggleButtonGroup>
               </Stack>
 
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Название</TableCell>
-                      <TableCell>Продавец</TableCell>
-                      <TableCell>Категория</TableCell>
-                      <TableCell align="right">В упаковке</TableCell>
-                      <TableCell align="right">Цена упаковки</TableCell>
-                      <TableCell align="right">Доставка</TableCell>
-                      <TableCell>URL</TableCell>
-                      <TableCell>Footprint</TableCell>
-                      <TableCell>Описание</TableCell>
+                      {columns.map((column) => (
+                        <TableCell key={column.id} align={column.align || 'left'}>
+                          {column.label}
+                        </TableCell>
+                      ))}
                       <TableCell align="right" />
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {pageItems.map((product) => (
                       <TableRow key={product.id} hover>
-                        <TableCell>{product.name}</TableCell>
-                        <TableCell>
-                          {product.sellerName ? (
-                            <Link
-                              component="button"
-                              type="button"
-                              underline="hover"
-                              title="Перейти к карточке магазина"
-                              onClick={() => goToSeller(product.sellerId)}
-                            >
-                              {product.sellerName}
-                            </Link>
-                          ) : (
-                            ''
-                          )}
-                        </TableCell>
-                        <TableCell>{product.category}</TableCell>
-                        <TableCell align="right">{product.packQty}</TableCell>
-                        <TableCell align="right">{formatMoney(product.packPrice)}</TableCell>
-                        <TableCell align="right">
-                          {formatMoney(product.shippingCost)}
-                        </TableCell>
-                        <TableCell>
-                          {product.url ? (
-                            <a href={product.url} target="_blank" rel="noreferrer">
-                              ссылка
-                            </a>
-                          ) : (
-                            ''
-                          )}
-                        </TableCell>
-                        <TableCell>{product.footprint}</TableCell>
-                        <TableCell>{product.description}</TableCell>
+                        {columns.map((column) => (
+                          <TableCell key={column.id} align={column.align || 'left'}>
+                            {column.render(product)}
+                          </TableCell>
+                        ))}
                         <TableCell align="right">
                           <IconButton size="small" onClick={() => openProductEdit(product)}>
                             <EditIcon fontSize="small" />
@@ -525,11 +570,11 @@ export default function SellersPage() {
                     ))}
                     {visibleProducts.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={10}>
+                        <TableCell colSpan={columnSpan}>
                           <Typography variant="body2" color="text.secondary">
                             {scopedProducts.length > 0
                               ? 'По фильтру ничего не найдено.'
-                              : onlySelectedSeller && selectedId
+                              : mode === 'shop'
                                 ? 'У этого продавца пока нет товаров.'
                                 : 'Товаров пока нет.'}
                           </Typography>
