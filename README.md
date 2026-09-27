@@ -47,6 +47,10 @@ design notes and the specification.
   all boards (accounting for each board's quantity), in `merged` or
   `by_board` modes. Seller/shipping set here survive re-imports.
 - **"Докупить"**: a service board for positions bought outside any board.
+- **Per-position note** ("Описание"): free text kept across re-imports, edited on
+  the "Закупки" tab.
+- **Export** the purchase table of a board to Excel (`.xlsx`) or CSV from the
+  "Закупки" tab.
 - All values are entered and calculated on the server — no Excel formulas.
 
 ## Requirements
@@ -103,13 +107,12 @@ the Python project) and creates the "Докупить" service board.
 
 - **Платы** — board list, import dialog (file picker + drag-and-drop, board name,
   DNP / Exclude-from-BOM overrides), create/delete.
-- **Закупки** — the purchase table of a board picked in the header, with
-  "Плат в изделии" and the "Итого" that excludes "Общие" rows. Same layout as a
-  board screen; boards are managed on the "Платы" tab.
-- **Экран платы** — grouped table with bold category/subcategory blocks,
-  inline seller dropdown, `Общие` checkbox, shipping input, calculated columns
-  and the "Итого" total (common rows excluded). Reference designators are not a
-  column: an arrow at the start of each row reveals them (collapsed by default).
+- **Закупки** — the editable purchase table of a board picked in the header:
+  "Плат в изделии", inline seller / `Общие` / shipping / note editing, the
+  "Итого" that excludes "Общие" rows, and **Excel/CSV export**.
+- **Экран платы** — read-only BOM view: name, footprint, quantity, total and the
+  note; purchase data (seller, `Общие`, shipping, cost) is not shown here.
+  Reference designators are revealed per row with an arrow (collapsed by default).
 - **Общие закупки** — the same table with a `merged` / `by_board` toggle.
 - **Докупить** — the service board: add/edit/delete manual positions.
 - **Продавцы** — CRUD table plus import from CSV/Excel (sheet picker for XLSX,

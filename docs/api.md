@@ -14,8 +14,9 @@ return `{ "error": "...", "details": [...] }` with an appropriate status code.
 | `PUT` | `/boards/:id` | Update `{name?, count?}` |
 | `DELETE` | `/boards/:id` | Delete a board and its lines (service board not allowed) |
 | `GET` | `/boards/:id/lines` | Grouped rows with calculated columns and totals |
+| `GET` | `/boards/:id/export` | Export the purchase table (`?format=xlsx\|csv`) |
 | `POST` | `/boards/:id/lines` | Add a manual line `{value, footprint?, qty?, reference?}` |
-| `PUT` | `/boards/:id/lines/:lineId` | Update a line (seller/common/shipping; manual lines may also change value/qty/footprint/reference) |
+| `PUT` | `/boards/:id/lines/:lineId` | Update a line (seller/`common`/`shippingCost`/`description`; manual lines may also change value/qty/footprint/reference) |
 | `DELETE` | `/boards/:id/lines/:lineId` | Delete a line |
 
 ### Import response
@@ -45,6 +46,17 @@ return `{ "error": "...", "details": [...] }` with an appropriate status code.
   "totals": { "cost": 0, "shippingCost": 0 }
 }
 ```
+
+### Export
+
+`GET /api/boards/:id/export?format=xlsx|csv` returns the board's purchase table
+as a file (`Content-Disposition: attachment`). Columns: Категория, Подкатегория,
+Обозначения, Наименование, Корпус/Footprint, Штук на плату, Плат, Итого, Общие,
+Продавец, URL, В упаковке, Цена упаковки, Упаковок, Доставка, Стоимость,
+Описание, plus an `ИТОГО` row (shipping and cost summed over non-common rows).
+
+`.xlsx` is built with ExcelJS (bold header, frozen header row, autofilter, number
+format); `.csv` uses `;` as the delimiter with a UTF-8 BOM and comma decimals.
 
 ## Sellers
 

@@ -50,6 +50,7 @@ erDiagram
 | `sellerId` | ObjectId → `Seller` \| null | Hand-filled, survives re-import |
 | `common` | Boolean | Hand-filled, survives re-import |
 | `shippingCost` | Number \| null | Hand-filled, not tied to the seller |
+| `description` | String | Hand-filled note per position, survives re-import |
 | `manual` | Boolean | True for rows added by hand on "Докупить" |
 
 ### `matchKey`
