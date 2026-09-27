@@ -8,22 +8,15 @@ import {
   Box,
   Button,
   CircularProgress,
-  Paper,
   Snackbar,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 
-import { api } from '../lib/apiClient.js';
 import ImportDialog from '../components/ImportDialog.jsx';
-import {
-  CommonCell,
-  LinesTable,
-  SellerCell,
-  ShippingCell,
-} from '../components/LinesTable.jsx';
-import { formatMoney } from '../format.js';
+import PurchaseBoardView from '../components/PurchaseBoardView.jsx';
+import { api } from '../lib/apiClient.js';
 
 export default function BoardPage() {
   const { id } = useParams();
@@ -55,9 +48,9 @@ export default function BoardPage() {
     load();
   }, [load]);
 
-  async function patch(line, changes) {
+  async function patchLine(lineId, changes) {
     try {
-      await api.boards.updateLine(id, line.id, changes);
+      await api.boards.updateLine(id, lineId, changes);
       await load();
     } catch (patchError) {
       setError(patchError.message);
@@ -93,60 +86,6 @@ export default function BoardPage() {
   }
 
   const board = view.board;
-  const sellerMap = new Map(sellers.map((seller) => [seller._id, seller]));
-  const sellerOf = (row) => (row.sellerId ? sellerMap.get(row.sellerId) : null);
-
-  const columns = [
-    { id: 'reference', label: 'Обозначение', sx: { whiteSpace: 'nowrap' } },
-    { id: 'value', label: 'Наименование' },
-    { id: 'footprint', label: 'Корпус/Footprint' },
-    { id: 'qty', label: 'Штук на плату', align: 'right' },
-    { id: 'boardCount', label: 'Плат', align: 'right', render: () => board.count },
-    {
-      id: 'totalQty',
-      label: 'Итого',
-      align: 'right',
-      sx: { fontWeight: 'bold' },
-      render: (row) => row.totalQty,
-    },
-    {
-      id: 'common',
-      label: 'Общие',
-      render: (row) => <CommonCell row={row} onChange={(c) => patch(row, c)} />,
-    },
-    {
-      id: 'seller',
-      label: 'Продавец',
-      render: (row) => (
-        <SellerCell row={row} sellers={sellers} onChange={(c) => patch(row, c)} />
-      ),
-    },
-    {
-      id: 'packQty',
-      label: 'В упаковке',
-      align: 'right',
-      render: (row) => sellerOf(row)?.packQty ?? '',
-    },
-    {
-      id: 'packPrice',
-      label: 'Цена упаковки',
-      align: 'right',
-      render: (row) => formatMoney(sellerOf(row)?.packPrice),
-    },
-    { id: 'packs', label: 'Упаковок', align: 'right', render: (row) => row.packs ?? '' },
-    {
-      id: 'shipping',
-      label: 'Доставка',
-      align: 'right',
-      render: (row) => <ShippingCell row={row} onChange={(c) => patch(row, c)} />,
-    },
-    {
-      id: 'cost',
-      label: 'Стоимость',
-      align: 'right',
-      render: (row) => formatMoney(row.cost),
-    },
-  ];
 
   return (
     <Box>
@@ -193,22 +132,13 @@ export default function BoardPage() {
         </Alert>
       )}
 
-      <LinesTable blocks={view.blocks} columns={columns} />
-
-      <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>
-        <Stack direction="row" justifyContent="flex-end" spacing={4}>
-          <Typography>
-            Доставка: <strong>{formatMoney(view.totals.shippingCost)}</strong>
-          </Typography>
-          <Typography variant="h6">
-            Итого: {formatMoney(view.totals.cost)}
-          </Typography>
-        </Stack>
-        <Typography variant="caption" color="text.secondary">
-          Позиции с галочкой «Общие» не входят в «Итого» — они считаются на листе
-          «Общие закупки».
-        </Typography>
-      </Paper>
+      <PurchaseBoardView
+        board={board}
+        blocks={view.blocks}
+        totals={view.totals}
+        sellers={sellers}
+        onPatchLine={patchLine}
+      />
 
       <ImportDialog
         open={importOpen}

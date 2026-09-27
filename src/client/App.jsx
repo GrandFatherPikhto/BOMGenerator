@@ -6,11 +6,13 @@ import BoardsPage from './pages/BoardsPage.jsx';
 import CategoriesPage from './pages/CategoriesPage.jsx';
 import CommonPurchasesPage from './pages/CommonPurchasesPage.jsx';
 import ManualPage from './pages/ManualPage.jsx';
+import PurchasesPage from './pages/PurchasesPage.jsx';
 import SellersPage from './pages/SellersPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
 const TABS = [
   { label: 'Платы', value: '/', to: '/' },
+  { label: 'Закупки', value: '/purchases', to: '/purchases' },
   { label: 'Общие закупки', value: '/common', to: '/common' },
   { label: 'Докупить', value: '/manual', to: '/manual' },
   { label: 'Продавцы', value: '/sellers', to: '/sellers' },
@@ -60,6 +62,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<BoardsPage />} />
           <Route path="/boards/:id" element={<BoardPage />} />
+          <Route path="/purchases" element={<PurchasesPage />} />
           <Route path="/manual" element={<ManualPage />} />
           <Route path="/common" element={<CommonPurchasesPage />} />
           <Route path="/sellers" element={<SellersPage />} />
