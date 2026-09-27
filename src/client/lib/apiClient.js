@@ -64,6 +64,23 @@ export const api = {
     update: (id, payload) =>
       request(`/sellers/${id}`, { method: 'PUT', body: payload }),
     remove: (id) => request(`/sellers/${id}`, { method: 'DELETE' }),
+    importSheets: (file) => {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      return request('/sellers/import/sheets', {
+        method: 'POST',
+        body: form,
+        isForm: true,
+      });
+    },
+    import: (file, sheet) => {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      if (sheet) {
+        form.append('sheet', sheet);
+      }
+      return request('/sellers/import', { method: 'POST', body: form, isForm: true });
+    },
   },
   categories: {
     list: () => request('/categories'),

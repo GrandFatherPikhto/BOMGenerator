@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import {
   Alert,
   Box,
@@ -12,6 +13,9 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  List,
+  ListItem,
+  ListItemText,
   Paper,
   Stack,
   Table,
@@ -24,6 +28,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import ImportSellersDialog from '../components/ImportSellersDialog.jsx';
 import { api } from '../lib/apiClient.js';
 
 const EMPTY = {
@@ -42,6 +47,8 @@ export default function SellersPage() {
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(EMPTY);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importResult, setImportResult] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -88,6 +95,13 @@ export default function SellersPage() {
     await load();
   }
 
+  async function handleImport({ file, sheet }) {
+    const result = await api.sellers.import(file, sheet);
+    setImportOpen(false);
+    setImportResult(result);
+    await load();
+  }
+
   return (
     <Box>
       <Stack
@@ -97,14 +111,55 @@ export default function SellersPage() {
         sx={{ mb: 2 }}
       >
         <Typography variant="h5">Продавцы</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>
-          Добавить
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<UploadFileIcon />}
+            onClick={() => setImportOpen(true)}
+          >
+            Импортировать
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>
+            Добавить
+          </Button>
+        </Stack>
       </Stack>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+
+      {importResult && (
+        <Alert
+          severity={importResult.summary.added || importResult.summary.updated ? 'success' : 'info'}
+          sx={{ mb: 2 }}
+          onClose={() => setImportResult(null)}
+        >
+          Импорт: добавлено {importResult.summary.added}, обновлено{' '}
+          {importResult.summary.updated}, без изменений {importResult.summary.unchanged},
+          пропущено {importResult.summary.skipped} из {importResult.summary.total}.
+          {importResult.warnings?.length > 0 && (
+            <List dense disablePadding sx={{ mt: 1 }}>
+              {importResult.warnings.slice(0, 8).map((warning, index) => (
+                <ListItem key={index} disableGutters sx={{ py: 0 }}>
+                  <ListItemText
+                    primary={warning}
+                    primaryTypographyProps={{ variant: 'caption' }}
+                  />
+                </ListItem>
+              ))}
+              {importResult.warnings.length > 8 && (
+                <ListItem disableGutters sx={{ py: 0 }}>
+                  <ListItemText
+                    primary={`… и ещё ${importResult.warnings.length - 8}`}
+                    primaryTypographyProps={{ variant: 'caption' }}
+                  />
+                </ListItem>
+              )}
+            </List>
+          )}
         </Alert>
       )}
 
@@ -151,6 +206,12 @@ export default function SellersPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <ImportSellersDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSubmit={handleImport}
+      />
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{draft._id ? 'Продавец' : 'Новый продавец'}</DialogTitle>
