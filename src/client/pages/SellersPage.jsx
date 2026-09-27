@@ -29,6 +29,8 @@ import {
 } from '@mui/material';
 
 import ImportSellersDialog from '../components/ImportSellersDialog.jsx';
+import Pagination from '../components/Pagination.jsx';
+import { usePagination } from '../hooks/usePagination.js';
 import { api } from '../lib/apiClient.js';
 
 const EMPTY = {
@@ -49,6 +51,7 @@ export default function SellersPage() {
   const [draft, setDraft] = useState(EMPTY);
   const [importOpen, setImportOpen] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const { page, pageSize, setPage, setPageSize, pageItems } = usePagination(sellers);
 
   const load = useCallback(async () => {
     try {
@@ -177,7 +180,7 @@ export default function SellersPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {sellers.map((seller) => (
+            {pageItems.map((seller) => (
               <TableRow key={seller._id} hover>
                 <TableCell>{seller.name}</TableCell>
                 <TableCell>{seller.category}</TableCell>
@@ -206,6 +209,14 @@ export default function SellersPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Pagination
+        count={sellers.length}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <ImportSellersDialog
         open={importOpen}

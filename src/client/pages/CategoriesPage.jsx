@@ -26,6 +26,8 @@ import {
   Typography,
 } from '@mui/material';
 
+import Pagination from '../components/Pagination.jsx';
+import { usePagination } from '../hooks/usePagination.js';
 import { api } from '../lib/apiClient.js';
 
 const EMPTY = {
@@ -63,6 +65,7 @@ export default function CategoriesPage() {
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(EMPTY);
+  const { page, pageSize, setPage, setPageSize, pageItems } = usePagination(categories);
 
   const load = useCallback(async () => {
     try {
@@ -169,7 +172,7 @@ export default function CategoriesPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {categories.map((category) => (
+            {pageItems.map((category) => (
               <TableRow key={category._id} hover>
                 <TableCell align="right">{category.order}</TableCell>
                 <TableCell>{category.name}</TableCell>
@@ -202,6 +205,14 @@ export default function CategoriesPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Pagination
+        count={categories.length}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>{draft._id ? 'Категория' : 'Новая категория'}</DialogTitle>

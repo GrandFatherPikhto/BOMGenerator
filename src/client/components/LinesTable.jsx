@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -17,6 +17,8 @@ import {
   TextField,
 } from '@mui/material';
 
+import Pagination from './Pagination.jsx';
+
 const CATEGORY_SX = {
   fontWeight: 'bold',
   textTransform: 'uppercase',
@@ -30,17 +32,83 @@ const SUBCATEGORY_SX = {
 };
 
 /**
+ * Split grouped blocks into pages of `pageSize` line rows. Category and
+ * subcategory headers do not count as rows; when a block continues on the next
+ * page its headers are repeated at the top of that page.
+ */
+export function paginateBlocks(blocks, pageSize) {
+  if (!pageSize || pageSize <= 0) {
+    return [blocks];
+  }
+  const pages = [];
+  let current = [];
+  let rowsInPage = 0;
+  let lastCategory = null;
+  let lastSubcategory = null;
+
+  const closePage = (repeatContext) => {
+    pages.push(current);
+    current = [];
+    rowsInPage = 0;
+    if (repeatContext) {
+      if (lastCategory) {
+        current.push({ ...lastCategory, repeated: true });
+      }
+      if (lastSubcategory) {
+        current.push({ ...lastSubcategory, repeated: true });
+      }
+    }
+  };
+
+  for (const block of blocks) {
+    if (block.kind === 'category') {
+      lastCategory = block;
+      lastSubcategory = null;
+    } else if (block.kind === 'subcategory') {
+      lastSubcategory = block;
+    }
+
+    if (block.kind === 'line') {
+      if (rowsInPage >= pageSize) {
+        closePage(true);
+      }
+      current.push(block);
+      rowsInPage += 1;
+    } else {
+      current.push(block);
+    }
+  }
+  pages.push(current);
+  return pages;
+}
+
+/**
  * Renders grouped blocks (category/subcategory/line) with a configurable set of
- * columns. Column definitions use `render(row)` for editable or formatted cells.
+ * columns and client-side pagination. Column definitions use `render(row)` for
+ * editable or formatted cells.
  *
  * When `renderDetail` is provided, every line gets a leading expander arrow; the
- * detail (e.g. the reference designators) is hidden until expanded and is shown
- * in an extra row spanning the whole width. All rows start collapsed.
+ * detail (e.g. the reference designators) is hidden until expanded. All rows
+ * start collapsed. `rowSx(row)` can style a whole line row.
  */
 export function LinesTable({ blocks, columns, renderDetail, rowSx }) {
   const hasDetail = typeof renderDetail === 'function';
   const columnSpan = columns.length + (hasDetail ? 1 : 0);
   const [expanded, setExpanded] = useState(() => new Set());
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
+
+  useEffect(() => {
+    setPage(0);
+  }, [blocks, pageSize]);
+
+  const lineCount = useMemo(
+    () => blocks.filter((block) => block.kind === 'line').length,
+    [blocks],
+  );
+  const pages = useMemo(() => paginateBlocks(blocks, pageSize), [blocks, pageSize]);
+  const safePage = Math.min(page, Math.max(0, pages.length - 1));
+  const visibleBlocks = pages[safePage] ?? [];
 
   function toggle(key) {
     setExpanded((previous) => {
@@ -55,92 +123,103 @@ export function LinesTable({ blocks, columns, renderDetail, rowSx }) {
   }
 
   return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table size="small" stickyHeader>
-        <TableHead>
-          <TableRow>
-            {hasDetail && <TableCell sx={{ width: 36 }} />}
-            {columns.map((column) => (
-              <TableCell key={column.id} align={column.align || 'left'}>
-                {column.label}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {blocks.map((block, index) => {
-            if (block.kind === 'category') {
-              return (
-                <TableRow key={`category-${block.name}-${index}`}>
-                  <TableCell colSpan={columnSpan} sx={CATEGORY_SX}>
-                    {block.name}
-                  </TableCell>
-                </TableRow>
-              );
-            }
-            if (block.kind === 'subcategory') {
-              return (
-                <TableRow key={`sub-${block.name}-${index}`}>
-                  <TableCell colSpan={columnSpan} sx={SUBCATEGORY_SX}>
-                    {block.name}
-                  </TableCell>
-                </TableRow>
-              );
-            }
-
-            const row = block.line;
-            const rowKey = row.id || row.matchKey || `line-${index}`;
-            const detail = hasDetail ? renderDetail(row) : null;
-            const isOpen = detail ? expanded.has(rowKey) : false;
-
-            return (
-              <Fragment key={rowKey}>
-                <TableRow hover sx={rowSx ? rowSx(row) : undefined}>
-                  {hasDetail && (
-                    <TableCell sx={{ width: 36, p: 0.5 }}>
-                      {detail ? (
-                        <IconButton
-                          size="small"
-                          aria-label="Показать обозначения"
-                          onClick={() => toggle(rowKey)}
-                        >
-                          {isOpen ? (
-                            <ExpandLessIcon fontSize="small" />
-                          ) : (
-                            <ExpandMoreIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                      ) : null}
-                    </TableCell>
-                  )}
-                  {columns.map((column) => (
-                    <TableCell
-                      key={column.id}
-                      align={column.align || 'left'}
-                      sx={column.sx}
-                    >
-                      {column.render ? column.render(row) : row[column.id]}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                {isOpen && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columnSpan}
-                      sx={{ backgroundColor: '#fafafa', py: 0.5 }}
-                    >
-                      {detail}
+    <>
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              {hasDetail && <TableCell sx={{ width: 36 }} />}
+              {columns.map((column) => (
+                <TableCell key={column.id} align={column.align || 'left'}>
+                  {column.label}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {visibleBlocks.map((block, index) => {
+              if (block.kind === 'category') {
+                return (
+                  <TableRow key={`category-${block.name}-${index}`}>
+                    <TableCell colSpan={columnSpan} sx={CATEGORY_SX}>
+                      {block.name}
                     </TableCell>
                   </TableRow>
-                )}
-              </Fragment>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </TableContainer>
+                );
+              }
+              if (block.kind === 'subcategory') {
+                return (
+                  <TableRow key={`sub-${block.name}-${index}`}>
+                    <TableCell colSpan={columnSpan} sx={SUBCATEGORY_SX}>
+                      {block.name}
+                    </TableCell>
+                  </TableRow>
+                );
+              }
+
+              const row = block.line;
+              const rowKey = row.id || row.matchKey || `line-${index}`;
+              const detail = hasDetail ? renderDetail(row) : null;
+              const isOpen = detail ? expanded.has(rowKey) : false;
+
+              return (
+                <Fragment key={rowKey}>
+                  <TableRow hover sx={rowSx ? rowSx(row) : undefined}>
+                    {hasDetail && (
+                      <TableCell sx={{ width: 36, p: 0.5 }}>
+                        {detail ? (
+                          <IconButton
+                            size="small"
+                            aria-label="Показать обозначения"
+                            onClick={() => toggle(rowKey)}
+                          >
+                            {isOpen ? (
+                              <ExpandLessIcon fontSize="small" />
+                            ) : (
+                              <ExpandMoreIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        ) : null}
+                      </TableCell>
+                    )}
+                    {columns.map((column) => (
+                      <TableCell
+                        key={column.id}
+                        align={column.align || 'left'}
+                        sx={column.sx}
+                      >
+                        {column.render ? column.render(row) : row[column.id]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {isOpen && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columnSpan}
+                        sx={{ backgroundColor: '#fafafa', py: 0.5 }}
+                      >
+                        {detail}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <Pagination
+        count={lineCount}
+        page={safePage}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
+    </>
   );
 }
+
+const PAGE_SIZE_DEFAULT = 20;
 
 /** Seller dropdown bound to a row. */
 export function SellerCell({ row, sellers, onChange }) {
