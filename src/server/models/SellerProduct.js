@@ -14,6 +14,8 @@ const productSchema = new mongoose.Schema(
     url: { type: String, default: '' },
     packQty: { type: Number, default: 1, min: 1 },
     packPrice: { type: Number, default: 0, min: 0 },
+    // Delivery cost of this concrete offer; the row may override it.
+    shippingCost: { type: Number, default: 0, min: 0 },
     // Informational fields describing the goods.
     category: { type: String, default: '' },
     description: { type: String, default: '' },

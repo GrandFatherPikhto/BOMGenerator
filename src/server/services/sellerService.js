@@ -21,9 +21,6 @@ function normalizeInput(payload = {}, { partial = false } = {}) {
   if (!partial || payload.description !== undefined) {
     data.description = String(payload.description ?? '');
   }
-  if (!partial || payload.shippingCost !== undefined) {
-    data.shippingCost = toNumber(payload.shippingCost, 0);
-  }
   return data;
 }
 
@@ -31,9 +28,6 @@ function assertInput(data) {
   const errors = [];
   if (data.name !== undefined && !data.name) {
     errors.push('name is required');
-  }
-  if (data.shippingCost !== undefined && data.shippingCost < 0) {
-    errors.push('shippingCost must be >= 0');
   }
   if (errors.length > 0) {
     const error = new Error(errors.join('; '));

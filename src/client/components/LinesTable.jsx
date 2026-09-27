@@ -312,12 +312,15 @@ export function CommonCell({ row, onChange }) {
   );
 }
 
-/** Shipping cost input that commits on blur. */
+/**
+ * Shipping cost input that commits on blur. An empty value means "auto": the
+ * delivery cost of the chosen product is used, and it is shown as a hint.
+ */
 export function ShippingCell({ row, onChange }) {
-  const [value, setValue] = useState(row.shippingCost ?? '');
+  const [value, setValue] = useState(row.shippingOverride ?? '');
   useEffect(() => {
-    setValue(row.shippingCost ?? '');
-  }, [row.shippingCost]);
+    setValue(row.shippingOverride ?? '');
+  }, [row.shippingOverride]);
 
   return (
     <TextField
@@ -325,9 +328,14 @@ export function ShippingCell({ row, onChange }) {
       variant="standard"
       type="number"
       value={value}
+      placeholder={
+        row.shippingCost === null || row.shippingCost === undefined
+          ? ''
+          : String(row.shippingCost)
+      }
       onChange={(event) => setValue(event.target.value)}
       onBlur={() => {
-        const current = row.shippingCost ?? '';
+        const current = row.shippingOverride ?? '';
         if (String(current) !== String(value)) {
           onChange({ shippingCost: value === '' ? null : Number(value) });
         }

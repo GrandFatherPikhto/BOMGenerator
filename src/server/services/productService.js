@@ -25,6 +25,9 @@ function normalizeInput(payload = {}, { partial = false } = {}) {
   if (!partial || payload.packPrice !== undefined) {
     data.packPrice = toNumber(payload.packPrice, 0);
   }
+  if (!partial || payload.shippingCost !== undefined) {
+    data.shippingCost = toNumber(payload.shippingCost, 0);
+  }
   if (!partial || payload.category !== undefined) {
     data.category = String(payload.category ?? '');
   }
@@ -48,6 +51,9 @@ function assertInput(data) {
   if (data.packPrice !== undefined && data.packPrice < 0) {
     errors.push('packPrice must be >= 0');
   }
+  if (data.shippingCost !== undefined && data.shippingCost < 0) {
+    errors.push('shippingCost must be >= 0');
+  }
   if (errors.length > 0) {
     const error = new Error(errors.join('; '));
     error.status = 400;
@@ -67,6 +73,7 @@ export function serializeProduct(product, seller) {
     url: product.url ?? '',
     packQty: product.packQty ?? 1,
     packPrice: product.packPrice ?? 0,
+    shippingCost: product.shippingCost ?? 0,
     category: product.category ?? '',
     description: product.description ?? '',
     footprint: product.footprint ?? '',

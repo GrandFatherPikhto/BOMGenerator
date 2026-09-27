@@ -68,7 +68,10 @@ export async function getCommonPurchases(mode = 'merged') {
       ? productMap.get(String(override.productId)) ?? null
       : null;
     const seller = product ? sellerMap.get(String(product.sellerId)) ?? null : null;
-    const shippingCost = override.shippingCost ?? null;
+    const shippingOverride = override.shippingCost ?? null;
+    // The override wins; otherwise the product's own delivery cost applies.
+    const shippingCost =
+      shippingOverride ?? (product ? product.shippingCost ?? 0 : null);
     const packsOverride = override.packsOverride ?? null;
     const packs =
       packsOverride ??
@@ -93,6 +96,7 @@ export async function getCommonPurchases(mode = 'merged') {
       productId: product ? String(product._id) : null,
       sellerId: seller ? String(seller._id) : null,
       shippingCost,
+      shippingOverride,
       packsOverride,
       packs,
       cost,

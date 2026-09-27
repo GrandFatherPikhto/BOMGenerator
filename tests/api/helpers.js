@@ -69,7 +69,7 @@ export function serviceBoardId(boards) {
 export async function createSellerWithProduct(
   app,
   { name = 'Seller', url = '' } = {},
-  { productName, packQty = 1, packPrice = 0, productUrl = '' } = {},
+  { productName, packQty = 1, packPrice = 0, productUrl = '', shippingCost = 0 } = {},
 ) {
   const sellerResponse = await request(app).post('/api/sellers').send({ name, url });
   const seller = sellerResponse.body;
@@ -80,6 +80,7 @@ export async function createSellerWithProduct(
       url: productUrl,
       packQty,
       packPrice,
+      shippingCost,
     });
   return { seller, product: productResponse.body };
 }

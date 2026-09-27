@@ -45,6 +45,7 @@ test('creates a product under a seller and returns it with the seller data', asy
       url: 'https://aliexpress/item/1',
       packQty: 100,
       packPrice: 120,
+      shippingCost: 250,
       category: 'Резисторы',
       description: '100 шт в упаковке',
       footprint: '0603',
@@ -59,6 +60,7 @@ test('creates a product under a seller and returns it with the seller data', asy
   assert.equal(product.url, 'https://aliexpress/item/1');
   assert.equal(product.packQty, 100);
   assert.equal(product.packPrice, 120);
+  assert.equal(product.shippingCost, 250);
   assert.equal(product.category, 'Резисторы');
   assert.equal(product.footprint, '0603');
 });
@@ -215,15 +217,48 @@ test('deleting a seller cascades its products and clears the line references', a
   assert.equal(cleared.cost, null);
 });
 
-test('a seller keeps its shipping cost and can live without a url', async () => {
-  const created = await createSeller({ name: 'Cash only', shippingCost: 350 });
+test('a seller can live without a url and keeps its description', async () => {
+  const created = await createSeller({ name: 'Cash only' });
   assert.equal(created.url, '');
-  assert.equal(created.shippingCost, 350);
+  assert.equal(created.shippingCost, undefined);
 
   const updated = await request(app)
     .put(`/api/sellers/${created._id}`)
-    .send({ shippingCost: 400, description: 'Только самовывоз' });
+    .send({ description: 'Только самовывоз' });
   assert.equal(updated.status, 200);
-  assert.equal(updated.body.shippingCost, 400);
   assert.equal(updated.body.description, 'Только самовывоз');
+});
+
+test('the product delivery cost fills the row and can be overridden', async () => {
+  const { product } = await createSellerWithProduct(
+    app,
+    { name: 'Shop' },
+    { productName: 'Part', packQty: 10, packPrice: 7, shippingCost: 30 },
+  );
+
+  const boards = (await request(app).get('/api/boards')).body;
+  const boardId = serviceBoardId(boards);
+  const line = await addManualLine(boardId, { value: '1 uF', footprint: '0603', qty: 15 });
+  await request(app)
+    .put(`/api/boards/${boardId}/lines/${line.id}`)
+    .send({ productId: product.id });
+
+  const auto = await request(app).get(`/api/boards/${boardId}/lines`);
+  const autoRow = findLine(auto.body, (row) => row.id === line.id);
+  assert.equal(autoRow.packs, 2);
+  assert.equal(autoRow.shippingOverride, null);
+  assert.equal(autoRow.shippingCost, 30); // the product's delivery cost
+  assert.equal(autoRow.cost, 2 * 7 + 30);
+  assert.equal(auto.body.totals.cost, 44);
+  assert.equal(auto.body.totals.shippingCost, 30);
+
+  await request(app)
+    .put(`/api/boards/${boardId}/lines/${line.id}`)
+    .send({ shippingCost: 5 });
+
+  const manual = await request(app).get(`/api/boards/${boardId}/lines`);
+  const manualRow = findLine(manual.body, (row) => row.id === line.id);
+  assert.equal(manualRow.shippingOverride, 5);
+  assert.equal(manualRow.shippingCost, 5);
+  assert.equal(manualRow.cost, 2 * 7 + 5);
 });

@@ -143,6 +143,8 @@ export async function importSellers({ buffer, fileName, sheet }) {
       url: row.productUrl,
       packQty: row.packQty,
       packPrice: row.packPrice,
+      // "Доставка" belongs to the offer, not to the shop.
+      shippingCost: row.shippingCost,
       category: row.category,
       description: row.description,
       footprint: '',

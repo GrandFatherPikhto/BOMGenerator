@@ -149,9 +149,13 @@ function computeRow(line, board, productMap, sellerMap, categories, settings, co
   const packs =
     packsOverride ??
     (product ? Math.ceil(purchaseQty / (product.packQty || 1)) : null);
-  const shippingCost = isCommon
+  const shippingOverride = isCommon
     ? override?.shippingCost ?? null
     : line.shippingCost ?? null;
+  // The hand-entered value wins; otherwise the delivery cost of the chosen
+  // product applies ("Доставка" lives on the product, not on the seller).
+  const shippingCost =
+    shippingOverride ?? (product ? product.shippingCost ?? 0 : null);
   const cost =
     packs !== null && product
       ? packs * product.packPrice + (shippingCost || 0)
@@ -169,6 +173,7 @@ function computeRow(line, board, productMap, sellerMap, categories, settings, co
     sellerId: seller ? String(seller._id) : null,
     common: isCommon,
     shippingCost,
+    shippingOverride,
     description: line.description ?? '',
     manual: Boolean(line.manual),
     totalQty,

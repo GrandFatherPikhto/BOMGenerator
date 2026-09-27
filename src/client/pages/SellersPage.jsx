@@ -34,12 +34,13 @@ import { usePagination } from '../hooks/usePagination.js';
 import { api } from '../lib/apiClient.js';
 import { formatMoney } from '../format.js';
 
-const EMPTY_SELLER = { name: '', url: '', description: '', shippingCost: 0 };
+const EMPTY_SELLER = { name: '', url: '', description: '' };
 const EMPTY_PRODUCT = {
   name: '',
   url: '',
   packQty: 1,
   packPrice: 0,
+  shippingCost: 0,
   category: '',
   description: '',
   footprint: '',
@@ -47,8 +48,9 @@ const EMPTY_PRODUCT = {
 
 /**
  * Master-detail "Продавцы": the left list holds the shops, the right side the
- * products (offers) of the selected shop. Products carry the package quantity
- * and price; the shop carries the (optional) URL, description and shipping.
+ * products (offers) of the selected shop. A product carries the package
+ * quantity, the price and the delivery cost; the shop carries the (optional)
+ * URL and a free-text description.
  */
 export default function SellersPage() {
   const [sellers, setSellers] = useState([]);
@@ -294,9 +296,6 @@ export default function SellersPage() {
                         </a>
                       </Typography>
                     )}
-                    <Typography variant="body2" color="text.secondary">
-                      Доставка: {formatMoney(selected.shippingCost)}
-                    </Typography>
                     {selected.description && (
                       <Typography variant="body2" sx={{ mt: 0.5 }}>
                         {selected.description}
@@ -348,6 +347,7 @@ export default function SellersPage() {
                       <TableCell>Категория</TableCell>
                       <TableCell align="right">В упаковке</TableCell>
                       <TableCell align="right">Цена упаковки</TableCell>
+                      <TableCell align="right">Доставка</TableCell>
                       <TableCell>URL</TableCell>
                       <TableCell>Footprint</TableCell>
                       <TableCell>Описание</TableCell>
@@ -361,6 +361,9 @@ export default function SellersPage() {
                         <TableCell>{product.category}</TableCell>
                         <TableCell align="right">{product.packQty}</TableCell>
                         <TableCell align="right">{formatMoney(product.packPrice)}</TableCell>
+                        <TableCell align="right">
+                          {formatMoney(product.shippingCost)}
+                        </TableCell>
                         <TableCell>
                           {product.url ? (
                             <a href={product.url} target="_blank" rel="noreferrer">
@@ -384,7 +387,7 @@ export default function SellersPage() {
                     ))}
                     {products.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8}>
+                        <TableCell colSpan={9}>
                           <Typography variant="body2" color="text.secondary">
                             У этого продавца пока нет товаров.
                           </Typography>
@@ -435,14 +438,6 @@ export default function SellersPage() {
               value={sellerDraft.url}
               onChange={(event) =>
                 setSellerDraft({ ...sellerDraft, url: event.target.value })
-              }
-            />
-            <TextField
-              label="Доставка"
-              type="number"
-              value={sellerDraft.shippingCost}
-              onChange={(event) =>
-                setSellerDraft({ ...sellerDraft, shippingCost: event.target.value })
               }
             />
             <TextField
@@ -503,6 +498,15 @@ export default function SellersPage() {
               onChange={(event) =>
                 setProductDraft({ ...productDraft, packPrice: event.target.value })
               }
+            />
+            <TextField
+              label="Доставка"
+              type="number"
+              value={productDraft.shippingCost}
+              onChange={(event) =>
+                setProductDraft({ ...productDraft, shippingCost: event.target.value })
+              }
+              helperText="Подставляется в строки закупок, если доставка не задана вручную"
             />
             <TextField
               label="Категория (справочно)"
