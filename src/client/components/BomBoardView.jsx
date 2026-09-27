@@ -37,6 +37,7 @@ export default function BomBoardView({ board, blocks }) {
       <LinesTable
         blocks={blocks}
         columns={columns}
+        resetKey={board.id}
         renderDetail={(row) => <ReferenceDesignators reference={row.reference} />}
       />
       <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>

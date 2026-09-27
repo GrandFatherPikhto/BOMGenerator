@@ -115,6 +115,7 @@ export default function PurchaseBoardView({
       <LinesTable
         blocks={blocks}
         columns={columns}
+        resetKey={board.id}
         rowSx={(row) => (row.common ? COMMON_ROW_SX : undefined)}
         renderDetail={(row) => <ReferenceDesignators reference={row.reference} />}
       />

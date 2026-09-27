@@ -138,7 +138,7 @@ export default function CommonPurchasesPage() {
         </Box>
       ) : (
         <>
-          <LinesTable blocks={view.blocks} columns={columns} />
+          <LinesTable blocks={view.blocks} columns={columns} resetKey={mode} />
           <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>
             <Stack direction="row" justifyContent="flex-end" spacing={4}>
               <Typography>

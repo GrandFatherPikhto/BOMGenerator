@@ -91,16 +91,18 @@ export function paginateBlocks(blocks, pageSize) {
  * detail (e.g. the reference designators) is hidden until expanded. All rows
  * start collapsed. `rowSx(row)` can style a whole line row.
  */
-export function LinesTable({ blocks, columns, renderDetail, rowSx }) {
+export function LinesTable({ blocks, columns, renderDetail, rowSx, resetKey }) {
   const hasDetail = typeof renderDetail === 'function';
   const columnSpan = columns.length + (hasDetail ? 1 : 0);
   const [expanded, setExpanded] = useState(() => new Set());
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
 
+  // Reset only when the table context changes (another board/mode) or the page
+  // size changes — never on a data refresh, so inline editing keeps the page.
   useEffect(() => {
     setPage(0);
-  }, [blocks, pageSize]);
+  }, [resetKey, pageSize]);
 
   const lineCount = useMemo(
     () => blocks.filter((block) => block.kind === 'line').length,
@@ -109,6 +111,11 @@ export function LinesTable({ blocks, columns, renderDetail, rowSx }) {
   const pages = useMemo(() => paginateBlocks(blocks, pageSize), [blocks, pageSize]);
   const safePage = Math.min(page, Math.max(0, pages.length - 1));
   const visibleBlocks = pages[safePage] ?? [];
+
+  // Clamp when the number of pages shrinks (e.g. rows were removed).
+  useEffect(() => {
+    setPage((current) => Math.min(current, Math.max(0, pages.length - 1)));
+  }, [pages.length]);
 
   function toggle(key) {
     setExpanded((previous) => {
