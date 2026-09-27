@@ -155,6 +155,21 @@ export default function PurchasesPage() {
         <Button variant="outlined" onClick={saveCount}>
           Применить
         </Button>
+        <Box sx={{ flexGrow: 1 }} />
+        <Button
+          variant="outlined"
+          component="a"
+          href={`/api/boards/${boardId}/export?format=xlsx`}
+        >
+          Экспорт в Excel
+        </Button>
+        <Button
+          variant="outlined"
+          component="a"
+          href={`/api/boards/${boardId}/export?format=csv`}
+        >
+          Экспорт в CSV
+        </Button>
       </Stack>
 
       {error && (

@@ -199,6 +199,31 @@ export function ShippingCell({ row, onChange }) {
   );
 }
 
+/** Free-text description input that commits on blur. */
+export function DescriptionCell({ row, onChange }) {
+  const [value, setValue] = useState(row.description ?? '');
+  useEffect(() => {
+    setValue(row.description ?? '');
+  }, [row.description]);
+
+  return (
+    <TextField
+      size="small"
+      variant="standard"
+      multiline
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => {
+        const current = row.description ?? '';
+        if (String(current) !== String(value)) {
+          onChange({ description: value });
+        }
+      }}
+      sx={{ minWidth: 220 }}
+    />
+  );
+}
+
 /** Integer quantity input that commits on blur (manual lines only). */
 export function QuantityCell({ row, onChange }) {
   const [value, setValue] = useState(row.qty ?? '');

@@ -14,15 +14,18 @@ import {
   Typography,
 } from '@mui/material';
 
+import BomBoardView from '../components/BomBoardView.jsx';
 import ImportDialog from '../components/ImportDialog.jsx';
-import PurchaseBoardView from '../components/PurchaseBoardView.jsx';
 import { api } from '../lib/apiClient.js';
 
+/**
+ * Read-only BOM of one board (opened from the "Платы" list). Purchase data and
+ * editing live on the "Закупки" tab.
+ */
 export default function BoardPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [view, setView] = useState(null);
-  const [sellers, setSellers] = useState([]);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [name, setName] = useState('');
@@ -31,12 +34,8 @@ export default function BoardPage() {
 
   const load = useCallback(async () => {
     try {
-      const [viewData, sellerList] = await Promise.all([
-        api.boards.view(id),
-        api.sellers.list(),
-      ]);
+      const viewData = await api.boards.view(id);
       setView(viewData);
-      setSellers(sellerList);
       setName(viewData.board.name);
       setCount(viewData.board.count);
     } catch (loadError) {
@@ -47,15 +46,6 @@ export default function BoardPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  async function patchLine(lineId, changes) {
-    try {
-      await api.boards.updateLine(id, lineId, changes);
-      await load();
-    } catch (patchError) {
-      setError(patchError.message);
-    }
-  }
 
   async function saveBoard() {
     try {
@@ -89,7 +79,12 @@ export default function BoardPage() {
 
   return (
     <Box>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }}
+      >
         <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')}>
           К списку
         </Button>
@@ -98,7 +93,7 @@ export default function BoardPage() {
           label="Имя платы"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          sx={{ minWidth: 260 }}
+          sx={{ minWidth: 240 }}
         />
         <TextField
           size="small"
@@ -132,13 +127,7 @@ export default function BoardPage() {
         </Alert>
       )}
 
-      <PurchaseBoardView
-        board={board}
-        blocks={view.blocks}
-        totals={view.totals}
-        sellers={sellers}
-        onPatchLine={patchLine}
-      />
+      <BomBoardView board={board} blocks={view.blocks} />
 
       <ImportDialog
         open={importOpen}

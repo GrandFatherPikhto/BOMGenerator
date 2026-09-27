@@ -1,42 +1,22 @@
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { Paper, Stack, Typography } from '@mui/material';
 
 import { formatMoney } from '../format.js';
-import { CommonCell, LinesTable, SellerCell, ShippingCell } from './LinesTable.jsx';
-
-/** Reference designators of one position, shown when a row is expanded. */
-function ReferenceDesignators({ reference }) {
-  const items = String(reference ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-  if (items.length === 0) {
-    return null;
-  }
-  return (
-    <Box>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: 'block', mb: 0.5 }}
-      >
-        Обозначения ({items.length})
-      </Typography>
-      <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-        {items.join(', ')}
-      </Typography>
-    </Box>
-  );
-}
+import {
+  CommonCell,
+  DescriptionCell,
+  LinesTable,
+  SellerCell,
+  ShippingCell,
+} from './LinesTable.jsx';
+import ReferenceDesignators from './ReferenceDesignators.jsx';
 
 /**
- * Purchase table of one board: category blocks with inline editing of the
- * seller, the "Общие" flag and shipping, plus the "Итого" totals.
+ * Editable purchase table of one board: category blocks with inline editing of
+ * the seller, the "Общие" flag, shipping and the note, plus the "Итого" totals.
  *
- * The reference designators are not a column: each row has an expander arrow on
- * the left that reveals that position's references (collapsed by default).
- *
- * Rows marked "Общие" are excluded from the board total (they are counted on
- * the "Общие закупки" sheet). Shared by the board screen and the "Закупки" tab.
+ * Reference designators are not a column: each row's arrow reveals them
+ * (collapsed by default). Rows marked "Общие" are excluded from the board total
+ * (they are counted on the "Общие закупки" sheet).
  */
 export default function PurchaseBoardView({
   board,
@@ -104,6 +84,16 @@ export default function PurchaseBoardView({
       label: 'Стоимость',
       align: 'right',
       render: (row) => formatMoney(row.cost),
+    },
+    {
+      id: 'description',
+      label: 'Описание',
+      render: (row) => (
+        <DescriptionCell
+          row={row}
+          onChange={(changes) => onPatchLine(row.id, changes)}
+        />
+      ),
     },
   ];
 
