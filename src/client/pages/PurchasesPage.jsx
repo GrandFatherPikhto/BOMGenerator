@@ -38,7 +38,8 @@ export default function PurchasesPage() {
           api.boards.list(),
           api.sellers.list(),
         ]);
-        setBoards(boardList.filter((board) => !board.isService));
+        // Only enabled boards take part in the purchase work.
+        setBoards(boardList.filter((board) => !board.isService && board.enabled));
         setSellers(sellerList);
       } catch (loadError) {
         setError(loadError.message);
@@ -48,9 +49,13 @@ export default function PurchasesPage() {
     })();
   }, []);
 
-  // Fall back to the first board when none is selected.
+  // Fall back to the first enabled board when none (or a disabled one) is selected.
   useEffect(() => {
-    if (loaded && !boardId && boards.length > 0) {
+    if (!loaded || boards.length === 0) {
+      return;
+    }
+    const selectedExists = boards.some((board) => board.id === boardId);
+    if (!selectedExists) {
       setSearchParams({ board: boards[0].id }, { replace: true });
     }
   }, [loaded, boardId, boards, setSearchParams]);

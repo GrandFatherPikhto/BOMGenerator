@@ -22,6 +22,9 @@ export function serializeBoard(board) {
     sourceFile: board.sourceFile ?? null,
     count: board.count ?? 1,
     isService: Boolean(board.isService),
+    // Documents created before these flags existed behave as "on".
+    enabled: board.enabled !== false,
+    inCommon: board.inCommon !== false,
     importedAt: board.importedAt ?? null,
   };
 }
@@ -91,6 +94,12 @@ export async function updateBoard(id, payload = {}) {
       throw badRequest('count must be a number >= 1');
     }
     board.count = count;
+  }
+  if (payload.enabled !== undefined) {
+    board.enabled = Boolean(payload.enabled);
+  }
+  if (payload.inCommon !== undefined) {
+    board.inCommon = Boolean(payload.inCommon);
   }
   await board.save();
   return board;
@@ -191,11 +200,18 @@ export async function getBoardView(boardId) {
     ]);
   const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
 
-  // Aggregated need and shared overrides of the "Common purchases" sheet.
-  const boardCount = new Map(boards.map((item) => [String(item._id), item.count ?? 1]));
+  // Only boards that are enabled AND marked "in common purchases" contribute.
+  const participatingCount = new Map(
+    boards
+      .filter((item) => item.enabled !== false && item.inCommon !== false)
+      .map((item) => [String(item._id), item.count ?? 1]),
+  );
   const commonTotalByKey = new Map();
   for (const line of commonLines) {
-    const factor = boardCount.get(String(line.boardId)) ?? 1;
+    const factor = participatingCount.get(String(line.boardId));
+    if (factor === undefined) {
+      continue;
+    }
     const current = commonTotalByKey.get(line.matchKey) ?? 0;
     commonTotalByKey.set(line.matchKey, current + (line.qty ?? 0) * factor);
   }

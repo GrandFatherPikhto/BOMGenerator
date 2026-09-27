@@ -14,6 +14,10 @@ const boardSchema = new mongoose.Schema(
     count: { type: Number, default: 1, min: 1 },
     // True for the single service board that holds manually added positions.
     isService: { type: Boolean, default: false },
+    // Whether the board takes part in the app (selectors, common purchases).
+    enabled: { type: Boolean, default: true },
+    // Whether the board's "Общие" rows feed the "Common purchases" sheet.
+    inCommon: { type: Boolean, default: true },
     importedAt: { type: Date, default: null },
   },
   { timestamps: true },

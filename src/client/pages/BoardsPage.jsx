@@ -8,6 +8,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   IconButton,
   Paper,
@@ -66,6 +67,15 @@ export default function BoardsPage() {
     navigate(`/boards/${board.id}`);
   }
 
+  async function toggleFlag(board, changes) {
+    try {
+      await api.boards.update(board.id, changes);
+      await load();
+    } catch (flagError) {
+      setError(flagError.message);
+    }
+  }
+
   async function handleDelete(board) {
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Удалить плату «${board.name}» вместе со строками?`)) {
@@ -109,6 +119,8 @@ export default function BoardsPage() {
           <TableHead>
             <TableRow>
               <TableCell>Плата</TableCell>
+              <TableCell align="center">Включено</TableCell>
+              <TableCell align="center">В общих закупках</TableCell>
               <TableCell>Файл</TableCell>
               <TableCell align="right">Плат в изделии</TableCell>
               <TableCell align="right">Позиций</TableCell>
@@ -118,12 +130,43 @@ export default function BoardsPage() {
           </TableHead>
           <TableBody>
             {boards.map((board) => (
-              <TableRow key={board.id} hover>
+              <TableRow
+                key={board.id}
+                hover
+                sx={board.enabled ? undefined : { opacity: 0.55 }}
+              >
                 <TableCell>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <span>{board.name}</span>
                     {board.isService && <Chip size="small" label="служебная" />}
                   </Stack>
+                </TableCell>
+                <TableCell align="center">
+                  {board.isService ? (
+                    '—'
+                  ) : (
+                    <Checkbox
+                      size="small"
+                      checked={board.enabled}
+                      onChange={(event) =>
+                        toggleFlag(board, { enabled: event.target.checked })
+                      }
+                    />
+                  )}
+                </TableCell>
+                <TableCell align="center">
+                  {board.isService ? (
+                    '—'
+                  ) : (
+                    <Checkbox
+                      size="small"
+                      checked={board.inCommon}
+                      disabled={!board.enabled}
+                      onChange={(event) =>
+                        toggleFlag(board, { inCommon: event.target.checked })
+                      }
+                    />
+                  )}
                 </TableCell>
                 <TableCell>{board.sourceFile || '—'}</TableCell>
                 <TableCell align="right">{board.count}</TableCell>

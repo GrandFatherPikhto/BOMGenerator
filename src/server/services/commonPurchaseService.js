@@ -25,7 +25,12 @@ export async function getCommonPurchases(mode = 'merged') {
   ]);
 
   const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
-  const boardMap = new Map(boards.map((board) => [String(board._id), board]));
+  // Only boards that are enabled AND marked "in common purchases" contribute.
+  const boardMap = new Map(
+    boards
+      .filter((board) => board.enabled !== false && board.inCommon !== false)
+      .map((board) => [String(board._id), board]),
+  );
   const overrideMap = new Map(overrides.map((item) => [item.matchKey, item]));
 
   // Aggregate by match key; the quantity already accounts for board.count.
