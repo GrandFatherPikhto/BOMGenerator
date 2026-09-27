@@ -1,5 +1,6 @@
 // /api/sellers routes.
 import { Router } from 'express';
+import multer from 'multer';
 
 import { asyncHandler } from '../lib/asyncHandler.js';
 import {
@@ -9,6 +10,15 @@ import {
   listSellers,
   updateSeller,
 } from '../services/sellerService.js';
+import {
+  importSellers,
+  listSellerSheets,
+} from '../services/sellerImportService.js';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
 
 const router = Router();
 
@@ -24,6 +34,32 @@ router.post(
   asyncHandler(async (req, res) => {
     const seller = await createSeller(req.body);
     res.status(201).json(seller);
+  }),
+);
+
+// Declared before "/:id" so "import" is not treated as an id.
+router.post(
+  '/import/sheets',
+  upload.single('file'),
+  asyncHandler(async (req, res) => {
+    const result = await listSellerSheets({
+      buffer: req.file?.buffer,
+      fileName: req.file?.originalname,
+    });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/import',
+  upload.single('file'),
+  asyncHandler(async (req, res) => {
+    const result = await importSellers({
+      buffer: req.file?.buffer,
+      fileName: req.file?.originalname,
+      sheet: req.body.sheet,
+    });
+    res.json(result);
   }),
 );
 

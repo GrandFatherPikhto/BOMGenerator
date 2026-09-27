@@ -76,5 +76,29 @@ if (powerBoard) {
   console.log('Board totals:', view.totals);
 }
 
+// Seller list import (CSV and Excel with a sheet).
+const SELLER_FILES = [
+  { file: 'sellers.csv' },
+  { file: 'sellers.xlsx', sheet: 'Продавцы' },
+];
+for (const item of SELLER_FILES) {
+  const fullPath = path.join(examplesDir, item.file);
+  if (!fs.existsSync(fullPath)) {
+    console.log(`SKIP ${item.file} (not found)`);
+    continue;
+  }
+  const buffer = fs.readFileSync(fullPath);
+  let req = request(app).post('/api/sellers/import');
+  if (item.sheet) {
+    req = req.field('sheet', item.sheet);
+  }
+  const response = await req.attach('file', buffer, item.file);
+  console.log(
+    `${item.file}: HTTP ${response.status}`,
+    response.body.summary,
+    `warnings=${response.body.warnings?.length ?? 0}`,
+  );
+}
+
 console.log('\nDone.');
 await disconnectDatabase();
