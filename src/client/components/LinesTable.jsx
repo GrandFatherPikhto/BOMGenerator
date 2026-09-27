@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
   Checkbox,
+  IconButton,
   MenuItem,
   Paper,
   Select,
@@ -29,14 +32,34 @@ const SUBCATEGORY_SX = {
 /**
  * Renders grouped blocks (category/subcategory/line) with a configurable set of
  * columns. Column definitions use `render(row)` for editable or formatted cells.
+ *
+ * When `renderDetail` is provided, every line gets a leading expander arrow; the
+ * detail (e.g. the reference designators) is hidden until expanded and is shown
+ * in an extra row spanning the whole width. All rows start collapsed.
  */
-export function LinesTable({ blocks, columns }) {
-  const colSpan = columns.length;
+export function LinesTable({ blocks, columns, renderDetail }) {
+  const hasDetail = typeof renderDetail === 'function';
+  const columnSpan = columns.length + (hasDetail ? 1 : 0);
+  const [expanded, setExpanded] = useState(() => new Set());
+
+  function toggle(key) {
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   return (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
+            {hasDetail && <TableCell sx={{ width: 36 }} />}
             {columns.map((column) => (
               <TableCell key={column.id} align={column.align || 'left'}>
                 {column.label}
@@ -49,7 +72,7 @@ export function LinesTable({ blocks, columns }) {
             if (block.kind === 'category') {
               return (
                 <TableRow key={`category-${block.name}-${index}`}>
-                  <TableCell colSpan={colSpan} sx={CATEGORY_SX}>
+                  <TableCell colSpan={columnSpan} sx={CATEGORY_SX}>
                     {block.name}
                   </TableCell>
                 </TableRow>
@@ -58,25 +81,59 @@ export function LinesTable({ blocks, columns }) {
             if (block.kind === 'subcategory') {
               return (
                 <TableRow key={`sub-${block.name}-${index}`}>
-                  <TableCell colSpan={colSpan} sx={SUBCATEGORY_SX}>
+                  <TableCell colSpan={columnSpan} sx={SUBCATEGORY_SX}>
                     {block.name}
                   </TableCell>
                 </TableRow>
               );
             }
+
             const row = block.line;
+            const rowKey = row.id || row.matchKey || `line-${index}`;
+            const detail = hasDetail ? renderDetail(row) : null;
+            const isOpen = detail ? expanded.has(rowKey) : false;
+
             return (
-              <TableRow key={row.id || row.matchKey} hover>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.id}
-                    align={column.align || 'left'}
-                    sx={column.sx}
-                  >
-                    {column.render ? column.render(row) : row[column.id]}
-                  </TableCell>
-                ))}
-              </TableRow>
+              <Fragment key={rowKey}>
+                <TableRow hover>
+                  {hasDetail && (
+                    <TableCell sx={{ width: 36, p: 0.5 }}>
+                      {detail ? (
+                        <IconButton
+                          size="small"
+                          aria-label="Показать обозначения"
+                          onClick={() => toggle(rowKey)}
+                        >
+                          {isOpen ? (
+                            <ExpandLessIcon fontSize="small" />
+                          ) : (
+                            <ExpandMoreIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      ) : null}
+                    </TableCell>
+                  )}
+                  {columns.map((column) => (
+                    <TableCell
+                      key={column.id}
+                      align={column.align || 'left'}
+                      sx={column.sx}
+                    >
+                      {column.render ? column.render(row) : row[column.id]}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                {isOpen && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columnSpan}
+                      sx={{ backgroundColor: '#fafafa', py: 0.5 }}
+                    >
+                      {detail}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
             );
           })}
         </TableBody>
