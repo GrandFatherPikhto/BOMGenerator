@@ -108,7 +108,8 @@ the Python project) and creates the "Докупить" service board.
   board screen; boards are managed on the "Платы" tab.
 - **Экран платы** — grouped table with bold category/subcategory blocks,
   inline seller dropdown, `Общие` checkbox, shipping input, calculated columns
-  and the "Итого" total (common rows excluded).
+  and the "Итого" total (common rows excluded). Reference designators are not a
+  column: an arrow at the start of each row reveals them (collapsed by default).
 - **Общие закупки** — the same table with a `merged` / `by_board` toggle.
 - **Докупить** — the service board: add/edit/delete manual positions.
 - **Продавцы** — CRUD table plus import from CSV/Excel (sheet picker for XLSX,
