@@ -95,9 +95,11 @@ test('re-import keeps hand-filled fields and removes missing lines', async () =>
   const view = await request(app).get(`/api/boards/${boardId}/lines`);
   const resistor = findLine(view.body, (line) => line.footprint.includes('R_0402'));
 
+  // Not marked "Общие": a common row would take seller/shipping from the
+  // common sheet anyway (see tests/api/packs.test.js).
   const update = await request(app)
     .put(`/api/boards/${boardId}/lines/${resistor.id}`)
-    .send({ sellerId, common: true, shippingCost: 5 });
+    .send({ sellerId, shippingCost: 5 });
   assert.equal(update.status, 200);
 
   // Re-import the same file name with changed quantities.
@@ -116,7 +118,7 @@ test('re-import keeps hand-filled fields and removes missing lines', async () =>
   assert.equal(resistorAfter.qty, 3); // CSV field refreshed
   assert.equal(resistorAfter.reference, 'R1');
   assert.equal(resistorAfter.sellerId, sellerId); // hand-filled kept
-  assert.equal(resistorAfter.common, true);
+  assert.equal(resistorAfter.common, false);
   assert.equal(resistorAfter.shippingCost, 5);
 
   // The 1 uF capacitor was added, the LED removed.
