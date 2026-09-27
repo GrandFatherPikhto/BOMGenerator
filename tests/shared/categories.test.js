@@ -175,3 +175,114 @@ test('validateCategory checks subcategories', () => {
     errors.some((message) => message.includes('subcategories[1].footprintContains')),
   );
 });
+
+// ---------------------------------------------------------------------------
+// Footprint condition, AND combination and case sensitivity
+// ---------------------------------------------------------------------------
+
+test('footprint condition: contains matches a substring', () => {
+  const categories = [
+    { name: 'Танталовые', footprintMode: 'contains', footprintPatterns: ['Tantalum'] },
+  ];
+  assert.equal(
+    resolve('C1', 'TAJ', categories, { footprint: 'Capacitor_Tantalum_SMD:CP' }).category,
+    'Танталовые',
+  );
+  assert.notEqual(
+    resolve('C2', '100 nF', categories, { footprint: 'Capacitor_SMD:C_0603' }).category,
+    'Танталовые',
+  );
+});
+
+test('footprint condition: prefix matches the start of the footprint', () => {
+  const categories = [
+    { name: 'THT', footprintMode: 'prefix', footprintPatterns: ['Capacitor_THT'] },
+  ];
+  assert.equal(
+    resolve('C1', '470uF', categories, { footprint: 'Capacitor_THT:C_Radial' }).category,
+    'THT',
+  );
+  assert.notEqual(
+    resolve('C2', '470uF', categories, { footprint: 'Capacitor_SMD:C_1206' }).category,
+    'THT',
+  );
+});
+
+test('footprint condition: regex', () => {
+  const categories = [
+    { name: '0402', footprintMode: 'regex', footprintPatterns: ['C_0402'] },
+  ];
+  assert.equal(
+    resolve('C1', '100 nF', categories, {
+      footprint: 'Capacitor_SMD:C_0402_1005Metric',
+    }).category,
+    '0402',
+  );
+});
+
+test('several conditions are combined with AND', () => {
+  const categories = [
+    {
+      name: 'Tantalum C',
+      refPatterns: ['C'],
+      footprintMode: 'contains',
+      footprintPatterns: ['Tantalum'],
+    },
+  ];
+  assert.equal(
+    resolve('C1', 'TAJ', categories, { footprint: 'Capacitor_Tantalum_SMD:x' }).category,
+    'Tantalum C',
+  );
+  // ref matches, footprint does not
+  assert.notEqual(
+    resolve('C2', '100 nF', categories, { footprint: 'Capacitor_SMD:C_0603' }).category,
+    'Tantalum C',
+  );
+  // footprint matches, ref does not
+  assert.notEqual(
+    resolve('R1', 'x', categories, { footprint: 'Capacitor_Tantalum_SMD:x' }).category,
+    'Tantalum C',
+  );
+});
+
+test('a single condition is enough (empty groups are not ANDed)', () => {
+  const categories = [
+    { name: 'OnlyFp', footprintMode: 'contains', footprintPatterns: ['Radial'] },
+  ];
+  assert.equal(
+    resolve('X1', 'y', categories, { footprint: 'Capacitor_THT:Radial_10mm' }).category,
+    'OnlyFp',
+  );
+});
+
+test('case is ignored by default and can be required', () => {
+  const insensitive = [{ name: 'TAJ', nameMode: 'prefix', namePatterns: ['taj'] }];
+  assert.equal(resolve('C1', 'TAJD107', insensitive).category, 'TAJ');
+
+  const sensitive = [
+    { name: 'TAJ', nameMode: 'prefix', namePatterns: ['taj'], caseSensitive: true },
+  ];
+  assert.notEqual(resolve('C1', 'TAJD107', sensitive).category, 'TAJ');
+
+  const sensitiveMatch = [
+    { name: 'TAJ', nameMode: 'prefix', namePatterns: ['TAJ'], caseSensitive: true },
+  ];
+  assert.equal(resolve('C1', 'TAJD107', sensitiveMatch).category, 'TAJ');
+});
+
+test('footprint regex mode is validated, prefix/contains are not', () => {
+  const bad = validateCategory({
+    name: 'x',
+    footprintMode: 'regex',
+    footprintPatterns: ['(unclosed'],
+  });
+  assert.equal(bad.length, 1);
+  assert.ok(bad[0].includes('footprintPatterns[0]'));
+
+  const ok = validateCategory({
+    name: 'x',
+    footprintMode: 'contains',
+    footprintPatterns: ['(unclosed'],
+  });
+  assert.deepEqual(ok, []);
+});
