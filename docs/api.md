@@ -1,0 +1,96 @@
+# REST API
+
+Base URL: `/api`. JSON everywhere; import uses `multipart/form-data`. Errors
+return `{ "error": "...", "details": [...] }` with an appropriate status code.
+
+## Boards
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/boards` | List boards (with `lineCount`) |
+| `POST` | `/boards` | Create an empty board `{name, count?}` |
+| `POST` | `/boards/import` | Import/re-import a CSV (multipart: `file`, `name`, `excludeDnp?`, `excludeFromBom?`) |
+| `GET` | `/boards/:id` | One board |
+| `PUT` | `/boards/:id` | Update `{name?, count?}` |
+| `DELETE` | `/boards/:id` | Delete a board and its lines (service board not allowed) |
+| `GET` | `/boards/:id/lines` | Grouped rows with calculated columns and totals |
+| `POST` | `/boards/:id/lines` | Add a manual line `{value, footprint?, qty?, reference?}` |
+| `PUT` | `/boards/:id/lines/:lineId` | Update a line (seller/common/shipping; manual lines may also change value/qty/footprint/reference) |
+| `DELETE` | `/boards/:id/lines/:lineId` | Delete a line |
+
+### Import response
+
+```json
+{
+  "board": { "id": "…", "name": "Power-Board-v099", "sourceFile": "Power-Board-v099.csv", "count": 1 },
+  "summary": { "added": 39, "updated": 0, "removed": 0, "total": 39 }
+}
+```
+
+### Board lines response
+
+```json
+{
+  "board": { "id": "…", "name": "…", "count": 1 },
+  "blocks": [
+    { "kind": "category", "name": "КОНДЕНСАТОРЫ" },
+    { "kind": "subcategory", "name": "Электролитические" },
+    { "kind": "line", "line": {
+        "id": "…", "reference": "C1", "value": "470uF 35V",
+        "footprint": "Capacitor_THT:C_Radial…", "matchKey": "num|F|4.70e-4|35V\u0001capacitor_tht:…",
+        "qty": 1, "totalQty": 1, "sellerId": null, "common": false,
+        "shippingCost": null, "packs": null, "cost": null,
+        "category": "Конденсаторы", "subcategory": "Электролитические" } }
+  ],
+  "totals": { "cost": 0, "shippingCost": 0 }
+}
+```
+
+## Sellers
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/sellers` | List |
+| `POST` | `/sellers` | Create |
+| `GET` | `/sellers/:id` | One |
+| `PUT` | `/sellers/:id` | Update |
+| `DELETE` | `/sellers/:id` | Delete (clears references) |
+
+## Categories
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/categories` | List (ascending `order`) |
+| `POST` | `/categories` | Create (validates patterns) |
+| `PUT` | `/categories/:id` | Update (validates patterns) |
+| `DELETE` | `/categories/:id` | Delete |
+
+Invalid regex example response (HTTP 400):
+
+```json
+{ "error": "refPatterns[0] is not a valid regex (\"(unclosed\"): Invalid regular expression: …" }
+```
+
+## Settings
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/settings` | Read the singleton |
+| `PUT` | `/settings` | Update |
+
+## Common purchases
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/common-purchases?mode=merged\|by_board` | Aggregated rows with calculated columns and totals |
+| `PUT` | `/common-purchases` | Set override `{matchKey, sellerId?, shippingCost?}` |
+| `PUT` | `/common-purchases/:matchKey` | Same, for simple/encoded keys |
+
+`by_board` adds a `byBoard` map to each row (`{"Board A": 2, "Board B": 3}`)
+and a `boardNames` array to the response.
+
+## Health
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | `{ "ok": true }` |

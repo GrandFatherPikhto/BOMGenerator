@@ -1,0 +1,113 @@
+# Architecture
+
+## Components
+
+| Layer | Location | Responsibility |
+|-------|----------|----------------|
+| Shared domain | [`src/shared/`](../src/shared) | Value parsing, categorisation, sorting. No dependencies, no I/O — imported by the server and the tests. |
+| API | [`src/server/`](../src/server) | Express routes, Mongoose models, services (import, grouping, common purchases). |
+| Client | [`src/client/`](../src/client) | React (Vite) UI, MUI components, thin `fetch` API layer. |
+| Tests | [`tests/`](../tests) | Node `node:test` suites: shared unit tests and API integration tests. |
+
+The shared module is deliberately pure so the exact same code drives the server
+and is verified by the unit tests.
+
+## High-level data flow
+
+```mermaid
+flowchart TD
+    CSV[KiCad CSV export] --> IMP[Import service]
+    IMP --> BRD[(Board)]
+    IMP --> BL[(BomLine)]
+    CAT[(ParseCategory)] --> AGG[Grouping and calculations]
+    ST[(Settings)] --> AGG
+    BL --> AGG
+    AGG --> API[Express REST API]
+    SEL[(Seller)] --> API
+    CPO[(CommonPurchaseOverride)] --> API
+    API --> UI[React client]
+    UI --> S1[Board screen]
+    UI --> S2[Sellers]
+    UI --> S3[Categorisation rules]
+    UI --> S4[Common purchases]
+    UI --> S5[Buy extra]
+```
+
+## Import / re-import
+
+```mermaid
+sequenceDiagram
+    participant UI as React client
+    participant API as Express
+    participant SVC as importService
+    participant DB as MongoDB
+
+    UI->>API: POST /api/boards/import (multipart: file, name, flags)
+    API->>SVC: importCsv({buffer, fileName, name, flags})
+    SVC->>SVC: parse CSV by column names (UTF-8/BOM)
+    SVC->>SVC: drop DNP / Exclude-from-BOM rows
+    SVC->>SVC: aggregate rows by matchKey (sum qty, join references)
+    SVC->>DB: find Board by sourceFile
+    alt board exists
+        SVC->>DB: update name, keep manual fields
+    else new board
+        SVC->>DB: create Board
+    end
+    loop each aggregated row
+        SVC->>DB: update line (CSV fields) or create new line
+    end
+    SVC->>DB: delete lines whose matchKey disappeared
+    SVC->>DB: set importedAt
+    SVC-->>API: {added, updated, removed, total}
+    API-->>UI: board + summary
+```
+
+Key points:
+
+- Matching is by `matchKey` (normalised nominal + normalised footprint), so
+  `4K7` and `4.7K` with the same footprint are the same row.
+- Hand-filled `sellerId`, `common` and `shippingCost` are never touched by a
+  re-import.
+- Rows absent from the new file are deleted.
+
+## Grouping and calculated columns
+
+On every board / common-purchases request the API:
+
+1. Loads the current `ParseCategory` documents (ascending `order`) and
+   `Settings`.
+2. For each stored line, resolves `{category, subcategory, sort}` via
+   [`resolveCategory()`](../src/shared/categories.js) (prefix or regex modes).
+3. Groups rows into blocks: categories in configured order, then subcategories
+   (declared order, then the "no subcategory" block), then sorted rows.
+4. Computes the purchase columns (server-side, never stored):
+
+   | Field | Formula |
+   |-------|---------|
+   | `totalQty` | `qty × board.count` (boards) / `Σ qty × board.count` (common) |
+   | `packs` | `seller ? ceil(totalQty / seller.packQty) : null` |
+   | `cost` | `packs != null ? packs × seller.packPrice + (shippingCost || 0) : null` |
+
+5. Sums the "Итого" totals over the visible rows; rows with `common: true` are
+   excluded from a board's "Итого" (they are counted on the common sheet).
+
+Category and subcategory are recalculated on the fly so that editing a rule in
+the UI is reflected on every board immediately, without a data migration.
+
+## Common purchases
+
+"Common purchases" is virtual: it aggregates every `BomLine` with
+`common: true` from all boards (including "Докупить") by `matchKey`,
+multiplying each contribution by its board's `count`. Only the manual
+seller/shipping overrides are stored, in `CommonPurchaseOverride`, keyed by
+`matchKey`, so they survive re-imports and changes in the set of contributing
+boards. Two presentation modes are supported: `merged` (one "нужно всего"
+row) and `by_board` (an extra column per contributing board).
+
+## Startup
+
+[`src/server/index.js`](../src/server/index.js) connects to MongoDB, ensures
+the `Settings` singleton, seeds the default categories when the collection is
+empty, and creates the "Докупить" service board. If MongoDB is unreachable the
+process prints a friendly message and exits non-zero instead of crashing with a
+stack trace.
