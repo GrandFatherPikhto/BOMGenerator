@@ -15,7 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 
-import { api } from '../api.js';
+import { api } from '../lib/apiClient.js';
 import ImportDialog from '../components/ImportDialog.jsx';
 import {
   CommonCell,

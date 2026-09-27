@@ -14,7 +14,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': {
+      // Only real API paths are proxied. A plain '/api' prefix would also
+      // swallow the client module /api.js and break the whole app.
+      '^/api/': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },

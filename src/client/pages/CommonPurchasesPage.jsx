@@ -11,7 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 
-import { api } from '../api.js';
+import { api } from '../lib/apiClient.js';
 import { LinesTable, SellerCell, ShippingCell } from '../components/LinesTable.jsx';
 import { formatMoney } from '../format.js';
 
