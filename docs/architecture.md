@@ -111,3 +111,12 @@ the `Settings` singleton, seeds the default categories when the collection is
 empty, and creates the "Докупить" service board. If MongoDB is unreachable the
 process prints a friendly message and exits non-zero instead of crashing with a
 stack trace.
+
+## UI composition
+
+The board purchase table is a single component,
+[`PurchaseBoardView`](../src/client/components/PurchaseBoardView.jsx), used both
+by the board screen (opened from "Платы") and by the "Закупки" tab. The tab adds
+a board selector in its header (the service "Докупить" board has its own tab and
+is not listed there). Both read the same endpoint, `GET /api/boards/:id/lines`,
+so behaviour and calculations never diverge.

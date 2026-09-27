@@ -103,6 +103,9 @@ the Python project) and creates the "Докупить" service board.
 
 - **Платы** — board list, import dialog (file picker + drag-and-drop, board name,
   DNP / Exclude-from-BOM overrides), create/delete.
+- **Закупки** — the purchase table of a board picked in the header, with
+  "Плат в изделии" and the "Итого" that excludes "Общие" rows. Same layout as a
+  board screen; boards are managed on the "Платы" tab.
 - **Экран платы** — grouped table with bold category/subcategory blocks,
   inline seller dropdown, `Общие` checkbox, shipping input, calculated columns
   and the "Итого" total (common rows excluded).
