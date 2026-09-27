@@ -131,6 +131,7 @@ function computeRow(line, board, sellerMap, categories, settings) {
     sellerId: line.sellerId ? String(line.sellerId) : null,
     common: Boolean(line.common),
     shippingCost,
+    description: line.description ?? '',
     manual: Boolean(line.manual),
     totalQty,
     packs,
@@ -223,6 +224,15 @@ export async function updateLine(lineId, payload = {}) {
     }
   }
 
+  if (payload.description !== undefined) {
+    const description = String(payload.description ?? '').trim();
+    if (description.length > 500) {
+      errors.push('description must be at most 500 characters');
+    } else {
+      line.description = description;
+    }
+  }
+
   const touchesIdentity =
     payload.value !== undefined ||
     payload.footprint !== undefined ||
@@ -311,6 +321,7 @@ export async function addManualLine(boardId, payload = {}) {
     footprint,
     matchKey,
     raw: {},
+    description: String(payload.description ?? '').trim(),
     manual: true,
   });
   return line;

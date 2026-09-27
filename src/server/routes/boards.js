@@ -3,6 +3,7 @@ import { Router } from 'express';
 import multer from 'multer';
 
 import { asyncHandler } from '../lib/asyncHandler.js';
+import { exportBoard } from '../services/exportService.js';
 import {
   addManualLine,
   createBoard,
@@ -101,6 +102,21 @@ router.post(
   asyncHandler(async (req, res) => {
     const line = await addManualLine(req.params.id, req.body);
     res.status(201).json({ id: String(line._id) });
+  }),
+);
+
+// Excel/CSV export of one board's purchase table.
+router.get(
+  '/:id/export',
+  asyncHandler(async (req, res) => {
+    const format = req.query.format || 'xlsx';
+    const { filename, contentType, body } = await exportBoard(req.params.id, format);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    );
+    res.send(body);
   }),
 );
 
