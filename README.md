@@ -57,6 +57,10 @@ design notes and the specification.
   the "Закупки" tab.
 - **Export** the purchase table of a board to Excel (`.xlsx`) or CSV from the
   "Закупки" tab.
+- **Configurable page width** (Settings → "Ширина страницы"): normal, wide or
+  full — applied to every page right after saving.
+- **Seller links**: a small link next to the seller dropdown opens the seller's
+  page in a new tab, so prices and links can be checked quickly.
 - All values are entered and calculated on the server — no Excel formulas.
 
 ## Requirements

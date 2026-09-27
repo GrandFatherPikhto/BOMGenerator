@@ -108,6 +108,7 @@ returns a readable message naming the offending pattern.
 |-------|---------|
 | `defaultCategoryName` | `Прочее` |
 | `defaultSort` | `name` |
+| `pageWidth` | `normal` (1536) / `wide` (1920) / `full` (100%) |
 | `subcategoryOtherLabel` | `(без подкатегории)` |
 | `excludeDnpByDefault` | `true` |
 | `excludeFromBomByDefault` | `true` |

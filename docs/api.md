@@ -114,6 +114,10 @@ Invalid regex example response (HTTP 400):
 | `GET` | `/settings` | Read the singleton |
 | `PUT` | `/settings` | Update |
 
+`PUT` accepts `defaultCategoryName`, `defaultSort`, `pageWidth`
+(`normal` \| `wide` \| `full`), `subcategoryOtherLabel`, `excludeDnpByDefault`
+and `excludeFromBomByDefault`.
+
 ## Common purchases
 
 | Method | Path | Description |
