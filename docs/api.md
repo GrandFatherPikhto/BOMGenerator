@@ -52,9 +52,33 @@ return `{ "error": "...", "details": [...] }` with an appropriate status code.
 |--------|------|-------------|
 | `GET` | `/sellers` | List |
 | `POST` | `/sellers` | Create |
+| `POST` | `/sellers/import/sheets` | Sheet names of an uploaded file (multipart: `file`) |
+| `POST` | `/sellers/import` | Import sellers (multipart: `file`, optional `sheet`) |
 | `GET` | `/sellers/:id` | One |
 | `PUT` | `/sellers/:id` | Update |
 | `DELETE` | `/sellers/:id` | Delete (clears references) |
+
+### Seller import
+
+Accepts `.csv`, `.xlsx` and `.xlsm`. CSV encoding (UTF-8/UTF-16 by BOM, else
+Windows-1251) and the delimiter (`,` / `;` / tab) are detected automatically.
+For Excel the sheet is selected by name; when omitted the first sheet is used.
+Columns are matched by header (`Название`/`name`, `Категория`, `URL`,
+`Кол-во в упаковке`, `Цена за упаковку`, `Доставка`, `Описание`); extra columns
+are ignored, and a leading title row is tolerated.
+
+Rules: sellers are matched by URL; an existing seller gets only `name`/`url`
+updated (packaging, price, shipping, category and description are kept); a new
+seller is created with every column. Duplicate URLs inside the file keep the
+first row. Rows without a URL or a name are skipped.
+
+```json
+{
+  "summary": { "added": 25, "updated": 0, "unchanged": 0, "skipped": 2, "total": 27 },
+  "warnings": ["Row 7: duplicate URL, keeping row 5"],
+  "sheets": ["Продавцы"]
+}
+```
 
 ## Categories
 

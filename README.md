@@ -37,6 +37,10 @@ design notes and the specification.
   `footprintContains`, per-category sort. Editing a rule takes effect
   immediately on every board, without a restart or data migration.
 - **Sellers** (`Seller`): packing quantity, package price, URL, description.
+- **Seller import** from CSV or Excel (with sheet selection). Sellers are matched
+  by URL: an existing one gets only its name/URL refreshed (packaging, price,
+  shipping, category and description are kept); a new one is created with all
+  columns of the file.
 - **Calculated purchase columns** returned ready-made by the server
   (`totalQty`, `packs`, `cost`), never stored on the rows.
 - **Common purchases**: virtual aggregation of every row marked `Общие` across
@@ -104,7 +108,8 @@ the Python project) and creates the "Докупить" service board.
   and the "Итого" total (common rows excluded).
 - **Общие закупки** — the same table with a `merged` / `by_board` toggle.
 - **Докупить** — the service board: add/edit/delete manual positions.
-- **Продавцы** — CRUD table.
+- **Продавцы** — CRUD table plus import from CSV/Excel (sheet picker for XLSX,
+  summary and warnings after import).
 - **Категории разбора** — CRUD table; regex errors are shown in the form before
   saving.
 - **Настройки** — default category/sort, subcategory label, DNP/BOM defaults.
