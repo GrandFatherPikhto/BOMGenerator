@@ -62,19 +62,13 @@ export async function migrateSellersToProducts() {
 
     // The packaging, the delivery cost and the category hint now live on the
     // product; drop the stale copies from the seller so the documents stay clean.
-    await Seller.updateOne(
-      { _id: seller._id },
-      {
-        $unset: {
-          packQty: '',
-          packPrice: '',
-          shippingCost: '',
-          category: '',
-          footprint: '',
-        },
-      },
-      { strict: false },
-    );
+    const stale = { packQty: '', packPrice: '', category: '', footprint: '' };
+    if (!legacyShipping || product.shippingCost) {
+      // Never drop a delivery cost that has not been stored anywhere else: if
+      // the product could not take it, the seller keeps it for the next run.
+      stale.shippingCost = '';
+    }
+    await Seller.updateOne({ _id: seller._id }, { $unset: stale }, { strict: false });
   }
 
   return {

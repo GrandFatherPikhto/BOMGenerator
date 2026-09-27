@@ -105,3 +105,34 @@ test('migration backfills the delivery cost into an existing product', async () 
   const again = await SellerProduct.findOne({ sellerId }).lean();
   assert.equal(again.shippingCost, 350);
 });
+
+test('migration keeps a delivery cost already set on the product', async () => {
+  const insert = await mongoose.connection
+    .collection(Seller.collection.name)
+    .insertOne({
+      name: 'Legacy shop',
+      url: '',
+      shippingCost: 350,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  const sellerId = insert.insertedId;
+
+  // The product already knows its own delivery cost: it must win.
+  await SellerProduct.create({
+    sellerId,
+    name: 'Legacy shop',
+    packQty: 1,
+    packPrice: 0,
+    shippingCost: 5,
+  });
+
+  await migrateSellersToProducts();
+
+  const product = await SellerProduct.findOne({ sellerId }).lean();
+  assert.equal(product.shippingCost, 5);
+
+  // The moved value leaves the seller, the used one is not resurrected.
+  const seller = await Seller.findById(sellerId).lean();
+  assert.equal(seller.shippingCost, undefined);
+});

@@ -168,4 +168,7 @@ Rows with `common` are excluded from the board "Итого" — they are bought 
    only `name`, `url` and `description`.
 
 A second run changes nothing. If an earlier run already created the products,
-the delivery cost is backfilled into them before the seller field is dropped.
+the delivery cost is backfilled into them before the seller field is dropped;
+a product that already has its own cost keeps it. The delivery field is only
+removed from the seller once the value really lives on the product, so no cost
+can be lost.
