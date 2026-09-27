@@ -54,6 +54,11 @@ function normalizeInput(payload = {}) {
     refPatterns: toStringArray(payload.refPatterns),
     nameMode: payload.nameMode === 'regex' ? 'regex' : 'prefix',
     namePatterns: toStringArray(payload.namePatterns),
+    footprintMode: ['prefix', 'regex', 'contains'].includes(payload.footprintMode)
+      ? payload.footprintMode
+      : 'prefix',
+    footprintPatterns: toStringArray(payload.footprintPatterns),
+    caseSensitive: Boolean(payload.caseSensitive),
     sort: SORT_SPECS.includes(payload.sort) ? payload.sort : null,
     subcategories: (payload.subcategories ?? []).map((sub) => ({
       name: String(sub?.name ?? '').trim(),

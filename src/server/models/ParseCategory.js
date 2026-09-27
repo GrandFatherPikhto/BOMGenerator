@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 
 export const REF_MODES = ['prefix', 'regex'];
 export const NAME_MODES = ['prefix', 'regex'];
+export const FOOTPRINT_MODES = ['prefix', 'regex', 'contains'];
 export const SORT_SPECS = ['value_desc', 'value_asc', 'name'];
 
 const subcategorySchema = new mongoose.Schema(
@@ -22,6 +23,10 @@ const parseCategorySchema = new mongoose.Schema(
     refPatterns: { type: [String], default: [] },
     nameMode: { type: String, enum: NAME_MODES, default: 'prefix' },
     namePatterns: { type: [String], default: [] },
+    footprintMode: { type: String, enum: FOOTPRINT_MODES, default: 'prefix' },
+    footprintPatterns: { type: [String], default: [] },
+    // Whether the Reference/Value/Footprint comparisons are case-sensitive.
+    caseSensitive: { type: Boolean, default: false },
     // When empty, Settings.defaultSort is used.
     sort: { type: String, enum: SORT_SPECS, default: null },
     subcategories: { type: [subcategorySchema], default: [] },

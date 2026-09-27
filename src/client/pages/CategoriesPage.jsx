@@ -8,6 +8,8 @@ import {
   Autocomplete,
   Box,
   Button,
+  Checkbox,
+  FormControlLabel,
   Dialog,
   DialogActions,
   DialogContent,
@@ -37,6 +39,9 @@ const EMPTY = {
   refPatterns: [],
   nameMode: 'prefix',
   namePatterns: [],
+  footprintMode: 'prefix',
+  footprintPatterns: [],
+  caseSensitive: false,
   sort: 'name',
   subcategories: [],
 };
@@ -90,6 +95,7 @@ export default function CategoriesPage() {
       ...category,
       refPatterns: category.refPatterns ?? [],
       namePatterns: category.namePatterns ?? [],
+      footprintPatterns: category.footprintPatterns ?? [],
       subcategories: category.subcategories ?? [],
     });
     setOpen(true);
@@ -134,9 +140,12 @@ export default function CategoriesPage() {
 
   const refError = patternError(draft.refPatterns, draft.refMode);
   const nameError = patternError(draft.namePatterns, draft.nameMode);
+  const footprintError = patternError(draft.footprintPatterns, draft.footprintMode);
   const patternMissing =
     (draft.refPatterns?.length ?? 0) === 0 &&
-    (draft.namePatterns?.length ?? 0) === 0;
+    (draft.namePatterns?.length ?? 0) === 0 &&
+    (draft.footprintPatterns?.length ?? 0) === 0;
+  const patternProblem = Boolean(refError || nameError || footprintError || patternMissing);
 
   return (
     <Box>
@@ -166,6 +175,7 @@ export default function CategoriesPage() {
               <TableCell>Название</TableCell>
               <TableCell>Reference</TableCell>
               <TableCell>Value</TableCell>
+              <TableCell>Footprint</TableCell>
               <TableCell>Сортировка</TableCell>
               <TableCell>Подкатегории</TableCell>
               <TableCell align="right" />
@@ -184,6 +194,11 @@ export default function CategoriesPage() {
                 <TableCell>
                   {category.namePatterns?.length
                     ? `${category.nameMode}: ${category.namePatterns.join(', ')}`
+                    : '—'}
+                </TableCell>
+                <TableCell>
+                  {category.footprintPatterns?.length
+                    ? `${category.footprintMode}: ${category.footprintPatterns.join(', ')}`
                     : '—'}
                 </TableCell>
                 <TableCell>{category.sort || '(по умолчанию)'}</TableCell>
@@ -316,9 +331,62 @@ export default function CategoriesPage() {
               />
             </Stack>
 
+            <Stack direction="row" spacing={2}>
+              <TextField
+                select
+                label="Режим Footprint"
+                value={draft.footprintMode}
+                onChange={(event) =>
+                  setDraft({ ...draft, footprintMode: event.target.value })
+                }
+                sx={{ width: 200 }}
+              >
+                <MenuItem value="prefix">prefix</MenuItem>
+                <MenuItem value="contains">contains</MenuItem>
+                <MenuItem value="regex">regex</MenuItem>
+              </TextField>
+              <Autocomplete
+                multiple
+                freeSolo
+                options={[]}
+                value={draft.footprintPatterns ?? []}
+                onChange={(event, value) =>
+                  setDraft({ ...draft, footprintPatterns: value })
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Паттерны Footprint"
+                    error={Boolean(footprintError)}
+                    helperText={
+                      footprintError ||
+                      (draft.footprintMode === 'prefix'
+                        ? 'Начало строки Footprint (Enter — добавить)'
+                        : draft.footprintMode === 'contains'
+                          ? 'Подстрока в Footprint (Enter — добавить)'
+                          : 'Regex по всей строке Footprint (Enter — добавить)')
+                    }
+                  />
+                )}
+                sx={{ flexGrow: 1 }}
+              />
+            </Stack>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={Boolean(draft.caseSensitive)}
+                  onChange={(event) =>
+                    setDraft({ ...draft, caseSensitive: event.target.checked })
+                  }
+                />
+              }
+              label="Учитывать регистр в условиях"
+            />
+
             {patternMissing && (
               <Alert severity="warning">
-                Нужен хотя бы один паттерн Reference или Value.
+                Нужен хотя бы один паттерн Reference, Value или Footprint.
               </Alert>
             )}
 
@@ -378,11 +446,7 @@ export default function CategoriesPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Отмена</Button>
-          <Button
-            variant="contained"
-            onClick={save}
-            disabled={Boolean(refError || nameError || patternMissing)}
-          >
+          <Button variant="contained" onClick={save} disabled={patternProblem}>
             Сохранить
           </Button>
         </DialogActions>
