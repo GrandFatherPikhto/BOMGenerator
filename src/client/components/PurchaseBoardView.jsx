@@ -1,22 +1,27 @@
-import { Paper, Stack, Typography } from '@mui/material';
+import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 
 import { formatMoney } from '../format.js';
 import {
   CommonCell,
   DescriptionCell,
   LinesTable,
+  PacksCell,
   SellerCell,
   ShippingCell,
 } from './LinesTable.jsx';
 import ReferenceDesignators from './ReferenceDesignators.jsx';
 
+const COMMON_ROW_SX = { backgroundColor: '#f5f5f5' };
+
 /**
  * Editable purchase table of one board: category blocks with inline editing of
- * the seller, the "Общие" flag, shipping and the note, plus the "Итого" totals.
+ * the seller, the "Общие" flag, packages, shipping and the note, plus the
+ * "Итого" totals.
  *
- * Reference designators are not a column: each row's arrow reveals them
- * (collapsed by default). Rows marked "Общие" are excluded from the board total
- * (they are counted on the "Общие закупки" sheet).
+ * A row marked "Общие" is purchased on the "Common purchases" sheet: its
+ * seller, packages, shipping and cost are shown read-only here (the need is
+ * aggregated across all boards) and are edited there. Reference designators are
+ * revealed per row with the arrow (collapsed by default).
  */
 export default function PurchaseBoardView({
   board,
@@ -27,6 +32,7 @@ export default function PurchaseBoardView({
 }) {
   const sellerMap = new Map(sellers.map((seller) => [seller._id, seller]));
   const sellerOf = (row) => (row.sellerId ? sellerMap.get(row.sellerId) : null);
+  const patch = (row) => (changes) => onPatchLine(row.id, changes);
 
   const columns = [
     { id: 'value', label: 'Наименование' },
@@ -43,20 +49,17 @@ export default function PurchaseBoardView({
     {
       id: 'common',
       label: 'Общие',
-      render: (row) => (
-        <CommonCell row={row} onChange={(changes) => onPatchLine(row.id, changes)} />
-      ),
+      render: (row) => <CommonCell row={row} onChange={patch(row)} />,
     },
     {
       id: 'seller',
       label: 'Продавец',
-      render: (row) => (
-        <SellerCell
-          row={row}
-          sellers={sellers}
-          onChange={(changes) => onPatchLine(row.id, changes)}
-        />
-      ),
+      render: (row) =>
+        row.common ? (
+          sellerOf(row)?.name ?? ''
+        ) : (
+          <SellerCell row={row} sellers={sellers} onChange={patch(row)} />
+        ),
     },
     {
       id: 'packQty',
@@ -70,14 +73,29 @@ export default function PurchaseBoardView({
       align: 'right',
       render: (row) => formatMoney(sellerOf(row)?.packPrice),
     },
-    { id: 'packs', label: 'Упаковок', align: 'right', render: (row) => row.packs ?? '' },
+    {
+      id: 'packs',
+      label: 'Упаковок',
+      align: 'right',
+      render: (row) =>
+        row.common ? (
+          <Tooltip title="Считается на листе «Общие закупки»">
+            <span>{row.packs ?? ''}</span>
+          </Tooltip>
+        ) : (
+          <PacksCell row={row} onChange={patch(row)} />
+        ),
+    },
     {
       id: 'shipping',
       label: 'Доставка',
       align: 'right',
-      render: (row) => (
-        <ShippingCell row={row} onChange={(changes) => onPatchLine(row.id, changes)} />
-      ),
+      render: (row) =>
+        row.common ? (
+          row.shippingCost ?? ''
+        ) : (
+          <ShippingCell row={row} onChange={patch(row)} />
+        ),
     },
     {
       id: 'cost',
@@ -88,12 +106,7 @@ export default function PurchaseBoardView({
     {
       id: 'description',
       label: 'Описание',
-      render: (row) => (
-        <DescriptionCell
-          row={row}
-          onChange={(changes) => onPatchLine(row.id, changes)}
-        />
-      ),
+      render: (row) => <DescriptionCell row={row} onChange={patch(row)} />,
     },
   ];
 
@@ -102,6 +115,7 @@ export default function PurchaseBoardView({
       <LinesTable
         blocks={blocks}
         columns={columns}
+        rowSx={(row) => (row.common ? COMMON_ROW_SX : undefined)}
         renderDetail={(row) => <ReferenceDesignators reference={row.reference} />}
       />
       <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>
@@ -112,8 +126,8 @@ export default function PurchaseBoardView({
           <Typography variant="h6">Итого: {formatMoney(totals.cost)}</Typography>
         </Stack>
         <Typography variant="caption" color="text.secondary">
-          Позиции с галочкой «Общие» не входят в «Итого» — они считаются на листе
-          «Общие закупки».
+          Позиции с галочкой «Общие» не входят в «Итого» и закупаются на листе
+          «Общие закупки» (там же задаются продавец, упаковки и доставка).
         </Typography>
       </Paper>
     </>

@@ -12,7 +12,12 @@ import {
 } from '@mui/material';
 
 import { api } from '../lib/apiClient.js';
-import { LinesTable, SellerCell, ShippingCell } from '../components/LinesTable.jsx';
+import {
+  LinesTable,
+  PacksCell,
+  SellerCell,
+  ShippingCell,
+} from '../components/LinesTable.jsx';
 import { formatMoney } from '../format.js';
 
 export default function CommonPurchasesPage() {
@@ -81,7 +86,12 @@ export default function CommonPurchasesPage() {
       align: 'right',
       render: (row) => sellerOf(row)?.packQty ?? '',
     },
-    { id: 'packs', label: 'Упаковок', align: 'right', render: (row) => row.packs ?? '' },
+    {
+      id: 'packs',
+      label: 'Упаковок',
+      align: 'right',
+      render: (row) => <PacksCell row={row} onChange={(c) => patch(row, c)} />,
+    },
     {
       id: 'shipping',
       label: 'Доставка',

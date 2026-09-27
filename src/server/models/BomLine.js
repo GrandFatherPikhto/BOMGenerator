@@ -29,6 +29,8 @@ const bomLineSchema = new mongoose.Schema(
     shippingCost: { type: Number, default: null },
     // Free-text note per position; hand-filled and kept across re-imports.
     description: { type: String, default: '' },
+    // Manual override of the package count (empty -> auto ceil of the need).
+    packsOverride: { type: Number, default: null, min: 0 },
     // True for rows added by hand to the "Докупить" board (no CSV source).
     manual: { type: Boolean, default: false },
   },

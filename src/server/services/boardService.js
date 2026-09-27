@@ -9,6 +9,7 @@ import {
 import { badRequest, conflict, notFound } from '../lib/httpError.js';
 import { Board, SERVICE_BOARD_NAME } from '../models/Board.js';
 import { BomLine } from '../models/BomLine.js';
+import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
 import { Seller } from '../models/Seller.js';
 import { listRuntimeCategories } from './categoryService.js';
 import { classifyLine, groupIntoBlocks, serializeBlocks } from './grouping.js';
@@ -108,17 +109,39 @@ export async function deleteBoard(id) {
   return board;
 }
 
-function computeRow(line, board, sellerMap, categories, settings) {
+function computeRow(line, board, sellerMap, categories, settings, common) {
   const { parsed, display, category, subcategory, sort } = classifyLine(
     line,
     categories,
     settings,
   );
-  const seller = line.sellerId ? sellerMap.get(String(line.sellerId)) ?? null : null;
+  const isCommon = Boolean(line.common);
+
+  // A "Общие" position is purchased on the "Common purchases" sheet: its seller,
+  // shipping and packages come from the shared override (and the need is summed
+  // across all boards), not from this line.
+  const override = isCommon ? common.overrideByKey.get(line.matchKey) ?? null : null;
+  const effectiveSellerId = isCommon
+    ? override?.sellerId ?? null
+    : line.sellerId ?? null;
+  const seller = effectiveSellerId
+    ? sellerMap.get(String(effectiveSellerId)) ?? null
+    : null;
+
   const totalQty = (line.qty ?? 0) * (board.count ?? 1);
-  const packs = seller ? Math.ceil(totalQty / seller.packQty) : null;
-  const shippingCost = line.shippingCost ?? null;
-  const cost = packs !== null ? packs * seller.packPrice + (shippingCost || 0) : null;
+  const purchaseQty = isCommon
+    ? common.totalByKey.get(line.matchKey) ?? totalQty
+    : totalQty;
+  const packsOverride = isCommon
+    ? override?.packsOverride ?? null
+    : line.packsOverride ?? null;
+  const packs =
+    packsOverride ?? (seller ? Math.ceil(purchaseQty / seller.packQty) : null);
+  const shippingCost = isCommon
+    ? override?.shippingCost ?? null
+    : line.shippingCost ?? null;
+  const cost =
+    packs !== null && seller ? packs * seller.packPrice + (shippingCost || 0) : null;
 
   return {
     id: String(line._id),
@@ -128,12 +151,14 @@ function computeRow(line, board, sellerMap, categories, settings) {
     valueRaw: line.value ?? '',
     footprint: line.footprint ?? '',
     matchKey: line.matchKey,
-    sellerId: line.sellerId ? String(line.sellerId) : null,
-    common: Boolean(line.common),
+    sellerId: effectiveSellerId ? String(effectiveSellerId) : null,
+    common: isCommon,
     shippingCost,
     description: line.description ?? '',
     manual: Boolean(line.manual),
     totalQty,
+    purchaseQty,
+    packsOverride,
     packs,
     cost,
     parsed,
@@ -154,16 +179,33 @@ export async function getBoardView(boardId) {
   if (!board) {
     throw notFound('Board not found');
   }
-  const [settings, categories, lines, sellers] = await Promise.all([
-    getSettings(),
-    listRuntimeCategories(),
-    BomLine.find({ boardId: board._id }).lean(),
-    Seller.find().lean(),
-  ]);
+  const [settings, categories, lines, sellers, boards, commonLines, overrides] =
+    await Promise.all([
+      getSettings(),
+      listRuntimeCategories(),
+      BomLine.find({ boardId: board._id }).lean(),
+      Seller.find().lean(),
+      Board.find().lean(),
+      BomLine.find({ common: true }).lean(),
+      CommonPurchaseOverride.find().lean(),
+    ]);
   const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
 
+  // Aggregated need and shared overrides of the "Common purchases" sheet.
+  const boardCount = new Map(boards.map((item) => [String(item._id), item.count ?? 1]));
+  const commonTotalByKey = new Map();
+  for (const line of commonLines) {
+    const factor = boardCount.get(String(line.boardId)) ?? 1;
+    const current = commonTotalByKey.get(line.matchKey) ?? 0;
+    commonTotalByKey.set(line.matchKey, current + (line.qty ?? 0) * factor);
+  }
+  const common = {
+    totalByKey: commonTotalByKey,
+    overrideByKey: new Map(overrides.map((item) => [item.matchKey, item])),
+  };
+
   const rows = lines.map((line) =>
-    computeRow(line, board, sellerMap, categories, settings),
+    computeRow(line, board, sellerMap, categories, settings, common),
   );
   const blocks = groupIntoBlocks(rows, categories, settings);
 
@@ -230,6 +272,19 @@ export async function updateLine(lineId, payload = {}) {
       errors.push('description must be at most 500 characters');
     } else {
       line.description = description;
+    }
+  }
+
+  if (payload.packsOverride !== undefined) {
+    if (payload.packsOverride === null || payload.packsOverride === '') {
+      line.packsOverride = null;
+    } else {
+      const packs = Number(payload.packsOverride);
+      if (!Number.isInteger(packs) || packs < 0) {
+        errors.push('packsOverride must be a non-negative integer');
+      } else {
+        line.packsOverride = packs;
+      }
     }
   }
 

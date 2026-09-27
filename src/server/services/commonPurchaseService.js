@@ -59,9 +59,13 @@ export async function getCommonPurchases(mode = 'merged') {
       ? sellerMap.get(String(override.sellerId)) ?? null
       : null;
     const shippingCost = override.shippingCost ?? null;
-    const packs = seller ? Math.ceil(group.totalQty / seller.packQty) : null;
+    const packsOverride = override.packsOverride ?? null;
+    const packs =
+      packsOverride ?? (seller ? Math.ceil(group.totalQty / seller.packQty) : null);
     const cost =
-      packs !== null ? packs * seller.packPrice + (shippingCost || 0) : null;
+      packs !== null && seller
+        ? packs * seller.packPrice + (shippingCost || 0)
+        : null;
     const { parsed, display, category, subcategory, sort } = classifyLine(
       { reference: group.reference, value: group.value, footprint: group.footprint },
       categories,
@@ -77,6 +81,7 @@ export async function getCommonPurchases(mode = 'merged') {
       byBoard: mode === 'by_board' ? group.byBoard : undefined,
       sellerId: override.sellerId ? String(override.sellerId) : null,
       shippingCost,
+      packsOverride,
       packs,
       cost,
       parsed,
@@ -136,6 +141,18 @@ export async function setCommonOverride(matchKey, payload = {}) {
         throw badRequest('shippingCost must be a number >= 0');
       }
       doc.shippingCost = shipping;
+    }
+  }
+
+  if (payload.packsOverride !== undefined) {
+    if (payload.packsOverride === null || payload.packsOverride === '') {
+      doc.packsOverride = null;
+    } else {
+      const packs = Number(payload.packsOverride);
+      if (!Number.isInteger(packs) || packs < 0) {
+        throw badRequest('packsOverride must be a non-negative integer');
+      }
+      doc.packsOverride = packs;
     }
   }
 

@@ -14,6 +14,8 @@ const commonPurchaseOverrideSchema = new mongoose.Schema(
       default: null,
     },
     shippingCost: { type: Number, default: null },
+    // Manual override of the package count (empty -> auto ceil of the need).
+    packsOverride: { type: Number, default: null, min: 0 },
   },
   { timestamps: true },
 );

@@ -37,7 +37,7 @@ const SUBCATEGORY_SX = {
  * detail (e.g. the reference designators) is hidden until expanded and is shown
  * in an extra row spanning the whole width. All rows start collapsed.
  */
-export function LinesTable({ blocks, columns, renderDetail }) {
+export function LinesTable({ blocks, columns, renderDetail, rowSx }) {
   const hasDetail = typeof renderDetail === 'function';
   const columnSpan = columns.length + (hasDetail ? 1 : 0);
   const [expanded, setExpanded] = useState(() => new Set());
@@ -95,7 +95,7 @@ export function LinesTable({ blocks, columns, renderDetail }) {
 
             return (
               <Fragment key={rowKey}>
-                <TableRow hover>
+                <TableRow hover sx={rowSx ? rowSx(row) : undefined}>
                   {hasDetail && (
                     <TableCell sx={{ width: 36, p: 0.5 }}>
                       {detail ? (
@@ -195,6 +195,35 @@ export function ShippingCell({ row, onChange }) {
         }
       }}
       sx={{ width: 90 }}
+    />
+  );
+}
+
+/**
+ * Package-count override input that commits on blur. An empty value means
+ * "auto" (ceil of the need); the auto value is shown as a placeholder hint.
+ */
+export function PacksCell({ row, onChange }) {
+  const [value, setValue] = useState(row.packsOverride ?? '');
+  useEffect(() => {
+    setValue(row.packsOverride ?? '');
+  }, [row.packsOverride]);
+
+  return (
+    <TextField
+      size="small"
+      variant="standard"
+      type="number"
+      value={value}
+      placeholder={row.packs === null || row.packs === undefined ? '' : String(row.packs)}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => {
+        const current = row.packsOverride ?? '';
+        if (String(current) !== String(value)) {
+          onChange({ packsOverride: value === '' ? null : Number(value) });
+        }
+      }}
+      sx={{ width: 70 }}
     />
   );
 }
