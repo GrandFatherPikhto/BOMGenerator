@@ -262,3 +262,50 @@ test('the product delivery cost fills the row and can be overridden', async () =
   assert.equal(manualRow.shippingCost, 5);
   assert.equal(manualRow.cost, 2 * 7 + 5);
 });
+
+test('the category list merges the typed categories with the parsing rules', async () => {
+  const { seller } = await createSellerWithProduct(
+    app,
+    { name: 'Shop A' },
+    { productName: 'P1' },
+  );
+  // A category with stray spaces, and a product without any category.
+  await request(app)
+    .post(`/api/sellers/${seller._id}/products`)
+    .send({ name: 'P2', category: '  ЦАП  ', packQty: 1, packPrice: 0 });
+  await request(app)
+    .post(`/api/sellers/${seller._id}/products`)
+    .send({ name: 'P3', category: '', packQty: 1, packPrice: 0 });
+
+  // A category typed exactly like a rule, but with another case, and only one
+  // product carries it: it must not produce a second entry.
+  const rules = (await request(app).get('/api/categories')).body;
+  const ruleName = rules[0].name;
+  await request(app)
+    .post(`/api/sellers/${seller._id}/products`)
+    .send({ name: 'P4', category: ruleName.toLowerCase(), packQty: 1, packPrice: 0 });
+
+  const response = await request(app).get('/api/products/categories');
+  assert.equal(response.status, 200);
+  const list = response.body;
+
+  assert.ok(list.includes('ЦАП'), 'the typed category is trimmed and offered');
+  assert.equal(
+    list.filter((name) => name.toLowerCase() === ruleName.toLowerCase()).length,
+    1,
+    'a case-only difference does not duplicate an entry',
+  );
+  assert.ok(list.includes(ruleName), 'the rule spelling wins');
+  assert.ok(list.includes('Прочее'), 'the default category is offered');
+  for (const rule of rules) {
+    assert.ok(list.includes(rule.name), `rule "${rule.name}" is offered`);
+  }
+
+  // No empty entry, no duplicates, sorted alphabetically.
+  assert.equal(list.includes(''), false);
+  assert.deepEqual(list, [...new Set(list)]);
+  assert.deepEqual(
+    list,
+    [...list].sort((left, right) => left.localeCompare(right, 'ru')),
+  );
+});

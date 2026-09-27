@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -6,12 +6,15 @@ import EditIcon from '@mui/icons-material/Edit';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   List,
   ListItemButton,
@@ -33,6 +36,7 @@ import Pagination from '../components/Pagination.jsx';
 import { usePagination } from '../hooks/usePagination.js';
 import { api } from '../lib/apiClient.js';
 import { formatMoney } from '../format.js';
+import { compileProductFilter } from '../../shared/index.js';
 
 const EMPTY_SELLER = { name: '', url: '', description: '' };
 const EMPTY_PRODUCT = {
@@ -56,6 +60,7 @@ export default function SellersPage() {
   const [sellers, setSellers] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [products, setProducts] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const [error, setError] = useState(null);
 
   const [sellerDialog, setSellerDialog] = useState(false);
@@ -66,12 +71,39 @@ export default function SellersPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [importResult, setImportResult] = useState(null);
 
-  const { page, pageSize, setPage, setPageSize, pageItems } = usePagination(products);
+  // Filters of the product list: an optional name and an optional category,
+  // each matched as a substring or (with the checkbox on) as a regex.
+  const [nameFilter, setNameFilter] = useState('');
+  const [nameRegex, setNameRegex] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryRegex, setCategoryRegex] = useState(false);
+
+  const filter = useMemo(
+    () =>
+      compileProductFilter({
+        name: nameFilter,
+        nameRegex,
+        category: categoryFilter,
+        categoryRegex,
+      }),
+    [nameFilter, nameRegex, categoryFilter, categoryRegex],
+  );
+  const visibleProducts = useMemo(
+    () => (filter.active ? products.filter(filter.match) : products),
+    [products, filter],
+  );
+
+  const { page, pageSize, setPage, setPageSize, pageItems } =
+    usePagination(visibleProducts);
 
   const loadSellers = useCallback(async () => {
     try {
-      const list = await api.sellers.list();
+      const [list, categories] = await Promise.all([
+        api.sellers.list(),
+        api.products.categories(),
+      ]);
       setSellers(list);
+      setCategoryOptions(categories);
       setSelectedId((current) =>
         list.some((seller) => seller._id === current) ? current : list[0]?._id ?? null,
       );
@@ -79,6 +111,13 @@ export default function SellersPage() {
       setError(loadError.message);
     }
   }, []);
+
+  function resetFilters() {
+    setNameFilter('');
+    setNameRegex(false);
+    setCategoryFilter('');
+    setCategoryRegex(false);
+  }
 
   const loadProducts = useCallback(async () => {
     if (!selectedId) {
@@ -327,16 +366,76 @@ export default function SellersPage() {
                 sx={{ mb: 1 }}
               >
                 <Typography variant="subtitle1">
-                  Товары ({products.length})
+                  Товары (
+                  {filter.active
+                    ? `${visibleProducts.length} из ${products.length}`
+                    : products.length}
+                  )
                 </Typography>
-                <Button
-                  variant="contained"
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    onClick={resetFilters}
+                    disabled={!nameFilter && !categoryFilter}
+                  >
+                    Сбросить фильтр
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={openProductNew}
+                  >
+                    Добавить товар
+                  </Button>
+                </Stack>
+              </Stack>
+
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="flex-start"
+                sx={{ mb: 0.5, flexWrap: 'wrap', rowGap: 1 }}
+              >
+                <TextField
                   size="small"
-                  startIcon={<AddIcon />}
-                  onClick={openProductNew}
-                >
-                  Добавить товар
-                </Button>
+                  label="Название"
+                  value={nameFilter}
+                  onChange={(event) => setNameFilter(event.target.value)}
+                  error={Boolean(filter.errors.name)}
+                  helperText={filter.errors.name ? 'Некорректный регекс' : ' '}
+                  sx={{ minWidth: 220 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={nameRegex}
+                      onChange={(event) => setNameRegex(event.target.checked)}
+                    />
+                  }
+                  label="регекс"
+                  sx={{ mr: 2 }}
+                />
+                <TextField
+                  size="small"
+                  label="Категория"
+                  value={categoryFilter}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                  error={Boolean(filter.errors.category)}
+                  helperText={filter.errors.category ? 'Некорректный регекс' : ' '}
+                  sx={{ minWidth: 220 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={categoryRegex}
+                      onChange={(event) => setCategoryRegex(event.target.checked)}
+                    />
+                  }
+                  label="регекс"
+                />
               </Stack>
 
               <TableContainer component={Paper} variant="outlined">
@@ -385,11 +484,13 @@ export default function SellersPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {products.length === 0 && (
+                    {visibleProducts.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={9}>
                           <Typography variant="body2" color="text.secondary">
-                            У этого продавца пока нет товаров.
+                            {products.length === 0
+                              ? 'У этого продавца пока нет товаров.'
+                              : 'По фильтру ничего не найдено.'}
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -399,7 +500,7 @@ export default function SellersPage() {
               </TableContainer>
 
               <Pagination
-                count={products.length}
+                count={visibleProducts.length}
                 page={page}
                 pageSize={pageSize}
                 onPageChange={setPage}
@@ -508,12 +609,23 @@ export default function SellersPage() {
               }
               helperText="Подставляется в строки закупок, если доставка не задана вручную"
             />
-            <TextField
-              label="Категория (справочно)"
-              value={productDraft.category}
-              onChange={(event) =>
-                setProductDraft({ ...productDraft, category: event.target.value })
+            <Autocomplete
+              freeSolo
+              options={categoryOptions}
+              value={productDraft.category ?? ''}
+              onChange={(event, value) =>
+                setProductDraft({ ...productDraft, category: value ?? '' })
               }
+              onInputChange={(event, value) =>
+                setProductDraft({ ...productDraft, category: value })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Категория (справочно)"
+                  helperText="Список — уже введённые категории товаров и «Категории разбора»; можно ввести новую"
+                />
+              )}
             />
             <TextField
               label="Footprint (справочно, допускается маска)"

@@ -88,6 +88,7 @@ export const api = {
   products: {
     list: (sellerId) =>
       request(sellerId ? `/products?sellerId=${sellerId}` : '/products'),
+    categories: () => request('/products/categories'),
     update: (id, payload) =>
       request(`/products/${id}`, { method: 'PUT', body: payload }),
     remove: (id) => request(`/products/${id}`, { method: 'DELETE' }),

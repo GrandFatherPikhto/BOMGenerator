@@ -139,7 +139,11 @@ the Python project) and creates the "Докупить" service board.
 - **Докупить** — the service board: add/edit/delete manual positions.
 - **Продавцы/Товары** — master-detail: the shop list on the left, the products of the
   selected shop on the right (CRUD with paging), plus import from CSV/Excel
-  (sheet picker for XLSX, summary and warnings after import).
+  (sheet picker for XLSX, summary and warnings after import). Above the table
+  there is a filter by **name** and by **category** (each field has a "регекс"
+  checkbox; an empty field means "no condition", both mean AND). A product
+  category is picked from a dropdown built from the categories already typed and
+  the "Категории разбора" names, and a new one can still be typed.
 - **Категории разбора** — CRUD table; regex errors are shown in the form before
   saving.
 - **Настройки** — default category/sort, subcategory label, DNP/BOM defaults.

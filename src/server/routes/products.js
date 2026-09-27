@@ -4,11 +4,20 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import {
   deleteProduct,
+  listProductCategories,
   listProducts,
   updateProduct,
 } from '../services/productService.js';
 
 const router = Router();
+
+// Declared before "/:id" so "categories" is not treated as an id.
+router.get(
+  '/categories',
+  asyncHandler(async (req, res) => {
+    res.json(await listProductCategories());
+  }),
+);
 
 router.get(
   '/',

@@ -81,6 +81,7 @@ A seller (shop) owns many products (offers). The shop holds `name` (unique),
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/products` | All products with `sellerName`/`sellerUrl` (filter `?sellerId=`) |
+| `GET` | `/products/categories` | Category names for the product form (sorted, de-duplicated) |
 | `PUT` | `/products/:id` | Update `{name?, url?, packQty?, packPrice?, shippingCost?, category?, description?, footprint?}` |
 | `DELETE` | `/products/:id` | Delete (clears the references in lines and overrides) |
 
@@ -95,6 +96,12 @@ A seller (shop) owns many products (offers). The shop holds `name` (unique),
 
 Validation (`400`): `name` is required, `packQty >= 1`, `packPrice >= 0`,
 `shippingCost >= 0`.
+
+`GET /products/categories` merges three sources and returns a sorted string
+array: the categories already typed on products, the names of the categorisation
+rules (`ParseCategory`) and the default category. Entries that differ only by
+case are collapsed into one, and a rule name is used as the canonical spelling.
+The field stays free-text in the UI, so anything new can be typed.
 
 ### Import
 

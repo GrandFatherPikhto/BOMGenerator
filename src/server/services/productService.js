@@ -5,6 +5,8 @@ import { BomLine } from '../models/BomLine.js';
 import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
 import { Seller } from '../models/Seller.js';
 import { SellerProduct } from '../models/SellerProduct.js';
+import { listRuntimeCategories } from './categoryService.js';
+import { getSettings } from './settingsService.js';
 
 function toNumber(value, fallback) {
   const parsed = Number(value);
@@ -78,6 +80,43 @@ export function serializeProduct(product, seller) {
     description: product.description ?? '',
     footprint: product.footprint ?? '',
   };
+}
+
+/**
+ * Category names offered by the product form: every category already typed on a
+ * product, plus the names of the categorisation rules ("Категории разбора") and
+ * the default category — a product category is a hint for those rules, so the
+ * two lists belong together. Free typing stays possible in the UI.
+ *
+ * The list is de-duplicated case-insensitively (the import may spell a category
+ * differently from a rule); a rule name is treated as the canonical spelling.
+ */
+export async function listProductCategories() {
+  const [typed, runtime, settings] = await Promise.all([
+    SellerProduct.distinct('category'),
+    listRuntimeCategories(),
+    getSettings(),
+  ]);
+
+  const names = new Map(); // lower-case key -> displayed name
+  const addTyped = (value) => {
+    const name = String(value ?? '').trim();
+    if (name && !names.has(name.toLowerCase())) {
+      names.set(name.toLowerCase(), name);
+    }
+  };
+  const addCanonical = (value) => {
+    const name = String(value ?? '').trim();
+    if (name) {
+      names.set(name.toLowerCase(), name);
+    }
+  };
+
+  typed.forEach(addTyped);
+  runtime.forEach((category) => addCanonical(category.name));
+  addCanonical(settings?.defaultCategoryName);
+
+  return [...names.values()].sort((left, right) => left.localeCompare(right, 'ru'));
 }
 
 /** All products (optionally of one seller), with the seller name/url attached. */

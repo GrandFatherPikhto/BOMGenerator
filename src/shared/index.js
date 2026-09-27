@@ -20,3 +20,9 @@ export {
 export { extractRefPrefix, resolveCategory, validateCategory } from './categories.js';
 
 export { sortGroups } from './sorting.js';
+
+export {
+  escapeRegExp,
+  compileTextFilter,
+  compileProductFilter,
+} from './textFilter.js';
