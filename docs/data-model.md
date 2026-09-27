@@ -89,12 +89,16 @@ Deleting a seller clears the references in `BomLine` and
 | `refPatterns` | [String] | Prefix letters or regexes |
 | `nameMode` | `prefix` \| `regex` | Default `prefix` |
 | `namePatterns` | [String] | Value prefixes or regexes |
+| `footprintMode` | `prefix` \| `regex` \| `contains` | Default `prefix` |
+| `footprintPatterns` | [String] | Footprint prefixes / substrings / regexes |
+| `caseSensitive` | Boolean | Applies to all three comparisons (default `false`) |
 | `sort` | `value_desc` \| `value_asc` \| `name` \| null | Falls back to `Settings.defaultSort` |
 | `subcategories` | [{name, footprintContains}] | Checked in array order |
 
-At least one of `refPatterns` / `namePatterns` is required. In `regex` mode
-every pattern must compile; validation runs on save and returns a readable
-message naming the offending pattern.
+At least one of `refPatterns` / `namePatterns` / `footprintPatterns` is required.
+When more than one of the three is set, the row must satisfy **all** of them
+(AND). In `regex` mode every pattern must compile; validation runs on save and
+returns a readable message naming the offending pattern.
 
 ## `Settings` (singleton)
 

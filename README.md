@@ -32,10 +32,12 @@ design notes and the specification.
   and adding new ones (the API returns `{added, updated, removed}`).
 - **Boards**: each board is an independent set of rows with its own quantity
   ("Плат в изделии", default 1).
-- **Editable categorisation rules** (`ParseCategory`) stored in MongoDB:
-  `prefix` / `regex` modes for both `Reference` and `Value`, subcategories by
-  `footprintContains`, per-category sort. Editing a rule takes effect
-  immediately on every board, without a restart or data migration.
+- **Editable categorisation rules** (`ParseCategory`) stored in MongoDB. A rule
+  may constrain **Reference**, **Value** and/or **Footprint**; when more than one
+  is set, all must match (AND). Each condition supports `prefix` / `regex`
+  (`Footprint` also `contains`), with an optional "case sensitive" flag.
+  Subcategories by `footprintContains`, per-category sort. Editing a rule takes
+  effect immediately on every board, without a restart or data migration.
 - **Sellers** (`Seller`): packing quantity, package price, URL, description.
 - **Seller import** from CSV or Excel (with sheet selection). Sellers are matched
   by URL: an existing one gets only its name/URL refreshed (packaging, price,

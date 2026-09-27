@@ -77,7 +77,9 @@ On every board / common-purchases request the API:
 1. Loads the current `ParseCategory` documents (ascending `order`) and
    `Settings`.
 2. For each stored line, resolves `{category, subcategory, sort}` via
-   [`resolveCategory()`](../src/shared/categories.js) (prefix or regex modes).
+   [`resolveCategory()`](../src/shared/categories.js): a rule may constrain
+   Reference, Value and/or Footprint (`prefix` / `regex` / `contains`), combined
+   with AND; matching ignores case unless the rule sets `caseSensitive`.
 3. Groups rows into blocks: categories in configured order, then subcategories
    (declared order, then the "no subcategory" block), then sorted rows.
 4. Computes the purchase columns (server-side, never stored):
