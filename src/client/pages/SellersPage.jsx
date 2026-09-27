@@ -16,6 +16,7 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   Link,
   List,
   ListItemButton,
@@ -34,6 +35,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import ClearableTextField, { ClearButton } from '../components/ClearableTextField.jsx';
 import ImportSellersDialog from '../components/ImportSellersDialog.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { usePagination } from '../hooks/usePagination.js';
@@ -482,7 +484,7 @@ export default function SellersPage() {
                 alignItems="flex-start"
                 sx={{ mb: 0.5, flexWrap: 'wrap', rowGap: 1 }}
               >
-                <TextField
+                <ClearableTextField
                   size="small"
                   label="Название"
                   value={nameFilter}
@@ -502,7 +504,7 @@ export default function SellersPage() {
                   label="регекс"
                   sx={{ mr: 2 }}
                 />
-                <TextField
+                <ClearableTextField
                   size="small"
                   label="Категория"
                   value={categoryFilter}
@@ -697,6 +699,7 @@ export default function SellersPage() {
             />
             <Autocomplete
               freeSolo
+              disableClearable
               options={categoryOptions}
               value={productDraft.category ?? ''}
               onChange={(event, value) =>
@@ -710,6 +713,24 @@ export default function SellersPage() {
                   {...params}
                   label="Категория (справочно)"
                   helperText="Список — уже введённые категории товаров и «Категории разбора»; можно ввести новую"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {productDraft.category && (
+                          <InputAdornment position="end">
+                            <ClearButton
+                              title="Очистить категорию"
+                              onClick={() =>
+                                setProductDraft({ ...productDraft, category: '' })
+                              }
+                            />
+                          </InputAdornment>
+                        )}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
                 />
               )}
             />

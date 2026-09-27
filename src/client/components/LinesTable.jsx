@@ -6,6 +6,7 @@ import {
   Autocomplete,
   Checkbox,
   IconButton,
+  InputAdornment,
   Paper,
   Stack,
   Table,
@@ -18,6 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import { ClearButton } from './ClearableTextField.jsx';
 import Pagination from './Pagination.jsx';
 import SellerLink from './SellerLink.jsx';
 
@@ -257,6 +259,16 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
   const selected = row.productId
     ? products.find((product) => product.id === row.productId) ?? null
     : null;
+  // The free-text query is kept in state so the cross can also clear a search
+  // that has not been confirmed with a product yet.
+  const [query, setQuery] = useState('');
+
+  function clearSearch() {
+    setQuery('');
+    if (selected) {
+      onChange({ productId: null });
+    }
+  }
 
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
@@ -264,7 +276,10 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
         size="small"
         options={options}
         value={selected}
+        inputValue={query}
+        onInputChange={(event, value) => setQuery(value)}
         onChange={(event, value) => onChange({ productId: value ? value.id : null })}
+        disableClearable
         getOptionLabel={(option) => option.name}
         isOptionEqualToValue={(option, value) => option.id === value.id}
         filterOptions={(list, state) => {
@@ -279,7 +294,24 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
           );
         }}
         renderInput={(params) => (
-          <TextField {...params} variant="standard" placeholder="—" />
+          <TextField
+            {...params}
+            variant="standard"
+            placeholder="—"
+            InputProps={{
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {(query || selected) && (
+                    <InputAdornment position="end">
+                      <ClearButton title="Очистить поиск товара" onClick={clearSearch} />
+                    </InputAdornment>
+                  )}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            }}
+          />
         )}
         sx={{ minWidth: 220 }}
       />
