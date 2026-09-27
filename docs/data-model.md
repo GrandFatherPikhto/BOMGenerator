@@ -5,8 +5,9 @@ Mongoose schemas live in [`src/server/models/`](../src/server/models).
 ```mermaid
 erDiagram
     Board ||--o{ BomLine : "has"
-    Seller ||--o{ BomLine : "chosen for"
-    Seller ||--o{ CommonPurchaseOverride : "chosen for"
+    Seller ||--o{ SellerProduct : "offers"
+    SellerProduct ||--o{ BomLine : "chosen for"
+    SellerProduct ||--o{ CommonPurchaseOverride : "chosen for"
     ParseCategory {
         number order
         string name
@@ -25,6 +26,11 @@ erDiagram
         boolean excludeFromBomByDefault
     }
 ```
+
+A **seller** is a shop, a **product** (offer) belongs to exactly one shop and
+carries the commercial data (packaging, price, delivery). Rows and common
+overrides point at a **product**, never at a shop; the shop is derived through
+the product.
 
 ## `Board`
 
@@ -49,9 +55,10 @@ erDiagram
 | `footprint` | String | Normalised (trimmed, `", "` separators) |
 | `matchKey` | String | See below; compound unique index `{boardId, matchKey}` |
 | `raw` | Mixed | Remaining CSV columns verbatim |
-| `sellerId` | ObjectId → `Seller` \| null | Hand-filled, survives re-import |
+| `productId` | ObjectId → `SellerProduct` \| null | Hand-filled, survives re-import |
 | `common` | Boolean | Hand-filled, survives re-import |
-| `shippingCost` | Number \| null | Hand-filled, not tied to the seller |
+| `packsOverride` | Number \| null | Hand-entered package count (`null` = auto) |
+| `shippingCost` | Number \| null | Hand-entered delivery for this row (`null` = the product's default) |
 | `description` | String | Hand-filled note per position, survives re-import |
 | `manual` | Boolean | True for rows added by hand on "Докупить" |
 
@@ -70,16 +77,28 @@ erDiagram
 | Field | Type | Notes |
 |-------|------|-------|
 | `name` | String | **Unique**, required |
-| `category` | String | Informational |
-| `footprint` | String | Informational mask (`Capacitor_SMD:C_0402_*`) |
-| `url` | String | |
-| `packQty` | Number | `min 1` |
-| `packPrice` | Number | `min 0` |
-| `shippingCost` | Number | Reference only; not used in row cost |
-| `description` | String | |
+| `url` | String | Page of the shop; may be empty |
+| `description` | String | Free text |
 
-Deleting a seller clears the references in `BomLine` and
-`CommonPurchaseOverride`.
+Deleting a seller cascades to its products and clears the `productId`
+references in `BomLine` and `CommonPurchaseOverride`.
+
+## `SellerProduct`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `sellerId` | ObjectId → `Seller` | Required, indexed |
+| `name` | String | Required; indexed together with `sellerId` (not unique) |
+| `url` | String | Link to the concrete offer; may be empty |
+| `packQty` | Number | Units per package, `min 1` |
+| `packPrice` | Number | Price of one package, `min 0` |
+| `shippingCost` | Number | Delivery of this offer, `min 0`; used when the row has none |
+| `category` | String | Informational (categorisation hint) |
+| `footprint` | String | Informational mask (`Capacitor_SMD:C_0402_*`) |
+| `description` | String | Free text |
+
+Deleting a product clears the `productId` references in `BomLine` and
+`CommonPurchaseOverride`; the rows themselves survive.
 
 ## `ParseCategory`
 
@@ -118,5 +137,35 @@ returns a readable message naming the offending pattern.
 | Field | Type | Notes |
 |-------|------|-------|
 | `matchKey` | String | **Unique**; not tied to a board |
-| `sellerId` | ObjectId → `Seller` \| null | |
-| `shippingCost` | Number \| null | |
+| `productId` | ObjectId → `SellerProduct` \| null | |
+| `packsOverride` | Number \| null | Hand-entered package count (`null` = auto) |
+| `shippingCost` | Number \| null | Hand-entered delivery (`null` = the product's default) |
+
+## Calculated columns
+
+The server sends the numbers ready-made (no formulas on the client):
+
+```
+totalQty   = qty × board.count                 (или сумма по платам для «Общих»)
+packs      = packsOverride ?? ceil(purchaseQty / product.packQty)
+shipping   = line/override shippingCost ?? product.shippingCost
+cost       = packs × product.packPrice + (shipping || 0)     (null без товара)
+```
+
+Rows with `common` are excluded from the board "Итого" — they are bought on the
+"Общие закупки" sheet.
+
+## Migration from the previous model
+
+`npm run migrate` (also executed at startup, idempotent) applies
+[`src/server/services/migrationService.js`](../src/server/services/migrationService.js):
+
+1. every `Seller` gets one `SellerProduct` named like the shop, inheriting
+   `packQty`, `packPrice`, `shippingCost`, `category`, `description`,
+   `footprint`;
+2. `BomLine.sellerId` and `CommonPurchaseOverride.sellerId` become `productId`;
+3. the legacy fields are `$unset` on the seller, so the shop documents keep
+   only `name`, `url` and `description`.
+
+A second run changes nothing. If an earlier run already created the products,
+the delivery cost is backfilled into them before the seller field is dropped.

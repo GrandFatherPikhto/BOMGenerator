@@ -23,11 +23,12 @@ flowchart TD
     ST[(Settings)] --> AGG
     BL --> AGG
     AGG --> API[Express REST API]
+    SP[(SellerProduct)] --> API
     SEL[(Seller)] --> API
     CPO[(CommonPurchaseOverride)] --> API
     API --> UI[React client]
     UI --> S1[Board screen]
-    UI --> S2[Sellers]
+    UI --> S2[Sellers and products]
     UI --> S3[Categorisation rules]
     UI --> S4[Common purchases]
     UI --> S5[Buy extra]
@@ -66,8 +67,8 @@ Key points:
 
 - Matching is by `matchKey` (normalised nominal + normalised footprint), so
   `4K7` and `4.7K` with the same footprint are the same row.
-- Hand-filled `sellerId`, `common` and `shippingCost` are never touched by a
-  re-import.
+- Hand-filled `productId`, `common`, `packsOverride` and `shippingCost` are
+  never touched by a re-import.
 - Rows absent from the new file are deleted.
 
 ## Grouping and calculated columns
@@ -87,8 +88,12 @@ On every board / common-purchases request the API:
    | Field | Formula |
    |-------|---------|
    | `totalQty` | `qty × board.count` (boards) / `Σ qty × board.count` (common) |
-   | `packs` | `seller ? ceil(totalQty / seller.packQty) : null` |
-   | `cost` | `packs != null ? packs × seller.packPrice + (shippingCost || 0) : null` |
+   | `packs` | `packsOverride ?? (product ? ceil(totalQty / product.packQty) : null)` |
+   | `shippingCost` | `shippingOverride ?? product.shippingCost` |
+   | `cost` | `packs != null && product ? packs × product.packPrice + (shippingCost || 0) : null` |
+
+   The product also yields the seller: a row stores only `productId`, and the
+   shop name/link is resolved through the product.
 
 5. Sums the "Итого" totals over the visible rows; rows with `common: true` are
    excluded from a board's "Итого" (they are counted on the common sheet).
@@ -101,7 +106,7 @@ the UI is reflected on every board immediately, without a data migration.
 "Common purchases" is virtual: it aggregates every `BomLine` with
 `common: true` from all boards (including "Докупить") by `matchKey`,
 multiplying each contribution by its board's `count`. Only the manual
-seller/shipping overrides are stored, in `CommonPurchaseOverride`, keyed by
+product/packages/shipping overrides are stored, in `CommonPurchaseOverride`, keyed by
 `matchKey`, so they survive re-imports and changes in the set of contributing
 boards. Two presentation modes are supported: `merged` (one "нужно всего"
 row) and `by_board` (an extra column per contributing board).

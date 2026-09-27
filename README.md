@@ -28,8 +28,9 @@ design notes and the specification.
 
 - **Import / re-import** KiCad BOM CSV exports. Re-import is keyed by the file
   name: the same file updates the existing board, refreshing quantities while
-  keeping hand-filled seller/`Общие`/shipping values, removing disappeared rows
-  and adding new ones (the API returns `{added, updated, removed}`).
+  keeping hand-filled product/`Общие`/packages/shipping values, removing
+  disappeared rows and adding new ones (the API returns
+  `{added, updated, removed}`).
 - **Boards**: each board is an independent set of rows with its own quantity
   ("Плат в изделии", default 1).
 - **Editable categorisation rules** (`ParseCategory`) stored in MongoDB. A rule
@@ -38,16 +39,24 @@ design notes and the specification.
   (`Footprint` also `contains`), with an optional "case sensitive" flag.
   Subcategories by `footprintContains`, per-category sort. Editing a rule takes
   effect immediately on every board, without a restart or data migration.
-- **Sellers** (`Seller`): packing quantity, package price, URL, description.
-- **Seller import** from CSV or Excel (with sheet selection). Sellers are matched
-  by URL: an existing one gets only its name/URL refreshed (packaging, price,
-  shipping, category and description are kept); a new one is created with all
-  columns of the file.
+- **Sellers → products (1:N)**. A seller (`Seller`) is a shop: name, URL (may be
+  empty), description. A product (`SellerProduct`) carries name, URL, packing
+  quantity, package price, **delivery**, a category hint, a footprint and a
+  description. A purchase row references a product and the shop is derived from
+  it; the row delivery is its own value, otherwise the product's.
+- **Import of sellers and products** from CSV or Excel (with sheet selection).
+  Two layouts are accepted: the two-level one (`Продавец`, `URL продавца`,
+  `Товар`, `URL товара`, `Кол-во в упаковке`, `Цена за упаковку`, `Категория`,
+  `Описание`) and the legacy one (`Название`, `Категория`, `URL`,
+  `Кол-во в упаковке`, `Цена за упаковку`, `Доставка`, `Описание`) where a row
+  creates a shop and a product with the same name and URL. A product is matched
+  by URL, otherwise by name inside its shop; an existing one gets only its
+  name/URL refreshed (packaging, price, delivery and description are kept).
 - **Calculated purchase columns** returned ready-made by the server
-  (`totalQty`, `packs`, `cost`), never stored on the rows.
+  (`totalQty`, `packs`, `shippingCost`, `cost`), never stored on the rows.
 - **Common purchases**: virtual aggregation of every row marked `Общие` across
   all boards (accounting for each board's quantity), in `merged` or
-  `by_board` modes. Seller/shipping set here survive re-imports.
+  `by_board` modes. Product/packages/shipping set here survive re-imports.
 - **"Докупить"**: a service board for positions bought outside any board.
 - **Common-purchases configurator**: each board has two flags on the "Платы"
   list — "Включено" (participates in the app) and "В общих закупках"
@@ -59,8 +68,8 @@ design notes and the specification.
   "Закупки" tab.
 - **Configurable page width** (Settings → "Ширина страницы"): normal, wide or
   full — applied to every page right after saving.
-- **Seller links**: a small link next to the seller dropdown opens the seller's
-  page in a new tab, so prices and links can be checked quickly.
+- **Product links**: a small link next to the chosen product opens the offer page
+  in a new tab (the shop page when the offer has no URL).
 - All values are entered and calculated on the server — no Excel formulas.
 
 ## Requirements
@@ -109,6 +118,7 @@ the Python project) and creates the "Докупить" service board.
 | `npm start` | Run the API in production (serves `dist/client` when `NODE_ENV=production`) |
 | `npm run seed` | Insert the default categories/settings if empty |
 | `npm run seed -- --reset` | Wipe and re-insert the default categories |
+| `npm run migrate` | One-off idempotent "seller → seller + product" migration (also runs at startup) |
 | `npm test` | All tests (`node:test`), API files run serially |
 | `npm run test:unit` | Shared-module unit tests only |
 | `npm run test:api` | API integration tests only |
@@ -119,15 +129,17 @@ the Python project) and creates the "Докупить" service board.
   import dialog (file picker + drag-and-drop, board name, DNP /
   Exclude-from-BOM overrides), create/delete.
 - **Закупки** — the editable purchase table of a board picked in the header:
-  "Плат в изделии", inline seller / `Общие` / shipping / note editing, the
-  "Итого" that excludes "Общие" rows, and **Excel/CSV export**.
+  "Плат в изделии", a "Продавец" filter for the list, the searchable "Товар"
+  picker, inline `Общие` / packages / shipping / note editing, the "Итого" that
+  excludes "Общие" rows, and **Excel/CSV export**.
 - **Экран платы** — read-only BOM view: name, footprint, quantity, total and the
   note; purchase data (seller, `Общие`, shipping, cost) is not shown here.
   Reference designators are revealed per row with an arrow (collapsed by default).
 - **Общие закупки** — the same table with a `merged` / `by_board` toggle.
 - **Докупить** — the service board: add/edit/delete manual positions.
-- **Продавцы** — CRUD table plus import from CSV/Excel (sheet picker for XLSX,
-  summary and warnings after import).
+- **Продавцы** — master-detail: the shop list on the left, the products of the
+  selected shop on the right (CRUD with paging), plus import from CSV/Excel
+  (sheet picker for XLSX, summary and warnings after import).
 - **Категории разбора** — CRUD table; regex errors are shown in the form before
   saving.
 - **Настройки** — default category/sort, subcategory label, DNP/BOM defaults.
@@ -142,7 +154,11 @@ the Python project) and creates the "Докупить" service board.
    is used for re-import matching and for the common-purchases grouping.
 4. Listing a board re-resolves categories from the current `ParseCategory`
    documents, groups rows into blocks, sorts them and computes `totalQty`,
-   `packs` and `cost` on the fly.
+   `packs`, `shippingCost` and `cost` on the fly.
+5. At startup (and via `npm run migrate`) an idempotent migration converts the
+   previous model once: every shop gets a product, the references in rows and
+   overrides move to `productId` and the stale shop fields are dropped. A second
+   run changes nothing.
 
 See [`docs/architecture.md`](docs/architecture.md) for diagrams.
 
