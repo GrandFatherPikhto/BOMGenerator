@@ -1,6 +1,8 @@
 import { AppBar, Box, Container, Tab, Tabs, Toolbar, Typography } from '@mui/material';
 import { Link as RouterLink, Route, Routes, useLocation } from 'react-router-dom';
 
+import { PAGE_WIDTH, useSettings } from './SettingsContext.jsx';
+
 import BoardPage from './pages/BoardPage.jsx';
 import BoardsPage from './pages/BoardsPage.jsx';
 import CategoriesPage from './pages/CategoriesPage.jsx';
@@ -30,6 +32,8 @@ function activeTab(pathname) {
 export default function App() {
   const location = useLocation();
   const current = activeTab(location.pathname);
+  const { settings } = useSettings();
+  const maxWidth = PAGE_WIDTH[settings?.pageWidth] ?? PAGE_WIDTH.normal;
 
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: '#f5f6f8' }}>
@@ -58,7 +62,7 @@ export default function App() {
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="xl" sx={{ py: 3 }}>
+      <Container maxWidth={false} sx={{ maxWidth, mx: 'auto', py: 3 }}>
         <Routes>
           <Route path="/" element={<BoardsPage />} />
           <Route path="/boards/:id" element={<BoardPage />} />

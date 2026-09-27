@@ -3,6 +3,7 @@ import { badRequest } from '../lib/httpError.js';
 import { Settings } from '../models/Settings.js';
 
 const SORT_SPECS = ['value_desc', 'value_asc', 'name'];
+const PAGE_WIDTHS = ['normal', 'wide', 'full'];
 
 export async function getSettings() {
   return Settings.getSingleton();
@@ -26,6 +27,14 @@ export async function updateSettings(payload = {}) {
       errors.push(`defaultSort must be one of ${SORT_SPECS.join(', ')}`);
     } else {
       settings.defaultSort = payload.defaultSort;
+    }
+  }
+
+  if (payload.pageWidth !== undefined) {
+    if (!PAGE_WIDTHS.includes(payload.pageWidth)) {
+      errors.push(`pageWidth must be one of ${PAGE_WIDTHS.join(', ')}`);
+    } else {
+      settings.pageWidth = payload.pageWidth;
     }
   }
 

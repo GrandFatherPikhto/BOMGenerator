@@ -10,6 +10,7 @@ import {
   ShippingCell,
 } from './LinesTable.jsx';
 import ReferenceDesignators from './ReferenceDesignators.jsx';
+import SellerLink from './SellerLink.jsx';
 
 const COMMON_ROW_SX = { backgroundColor: '#f5f5f5' };
 
@@ -56,7 +57,10 @@ export default function PurchaseBoardView({
       label: 'Продавец',
       render: (row) =>
         row.common ? (
-          sellerOf(row)?.name ?? ''
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <span>{sellerOf(row)?.name ?? ''}</span>
+            <SellerLink seller={sellerOf(row)} />
+          </Stack>
         ) : (
           <SellerCell row={row} sellers={sellers} onChange={patch(row)} />
         ),

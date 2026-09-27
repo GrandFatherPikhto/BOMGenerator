@@ -13,31 +13,43 @@ import {
   Typography,
 } from '@mui/material';
 
+import { useSettings } from '../SettingsContext.jsx';
 import { api } from '../lib/apiClient.js';
 
+const PAGE_WIDTH_OPTIONS = [
+  { value: 'normal', label: 'Обычная (1536)' },
+  { value: 'wide', label: 'Широкая (1920)' },
+  { value: 'full', label: 'Во всю ширину (100%)' },
+];
+
 export default function SettingsPage() {
-  const [settings, setSettings] = useState(null);
+  const { settings: shared, setSettings: setShared, reload } = useSettings();
+  const [draft, setDraft] = useState(shared);
   const [notice, setNotice] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api.settings
-      .get()
-      .then(setSettings)
-      .catch((loadError) => setError(loadError.message));
-  }, []);
+    reload();
+  }, [reload]);
+
+  useEffect(() => {
+    if (shared) {
+      setDraft(shared);
+    }
+  }, [shared]);
 
   async function save() {
     try {
-      const updated = await api.settings.update(settings);
-      setSettings(updated);
+      const updated = await api.settings.update(draft);
+      setShared(updated);
+      setDraft(updated);
       setNotice('Настройки сохранены');
     } catch (saveError) {
       setError(saveError.message);
     }
   }
 
-  if (!settings) {
+  if (!draft) {
     return error ? (
       <Alert severity="error">{error}</Alert>
     ) : (
@@ -66,36 +78,47 @@ export default function SettingsPage() {
         <Stack spacing={2}>
           <TextField
             label="Категория по умолчанию"
-            value={settings.defaultCategoryName}
+            value={draft.defaultCategoryName}
             onChange={(event) =>
-              setSettings({ ...settings, defaultCategoryName: event.target.value })
+              setDraft({ ...draft, defaultCategoryName: event.target.value })
             }
           />
           <TextField
             select
             label="Сортировка по умолчанию"
-            value={settings.defaultSort}
-            onChange={(event) =>
-              setSettings({ ...settings, defaultSort: event.target.value })
-            }
+            value={draft.defaultSort}
+            onChange={(event) => setDraft({ ...draft, defaultSort: event.target.value })}
           >
             <MenuItem value="name">по алфавиту</MenuItem>
             <MenuItem value="value_desc">по убыванию номинала</MenuItem>
             <MenuItem value="value_asc">по возрастанию номинала</MenuItem>
           </TextField>
           <TextField
+            select
+            label="Ширина страницы"
+            value={draft.pageWidth ?? 'normal'}
+            onChange={(event) => setDraft({ ...draft, pageWidth: event.target.value })}
+            helperText="Применяется ко всем страницам сразу после сохранения"
+          >
+            {PAGE_WIDTH_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
             label="Подпись «без подкатегории»"
-            value={settings.subcategoryOtherLabel}
+            value={draft.subcategoryOtherLabel}
             onChange={(event) =>
-              setSettings({ ...settings, subcategoryOtherLabel: event.target.value })
+              setDraft({ ...draft, subcategoryOtherLabel: event.target.value })
             }
           />
           <FormControlLabel
             control={
               <Switch
-                checked={settings.excludeDnpByDefault}
+                checked={draft.excludeDnpByDefault}
                 onChange={(event) =>
-                  setSettings({ ...settings, excludeDnpByDefault: event.target.checked })
+                  setDraft({ ...draft, excludeDnpByDefault: event.target.checked })
                 }
               />
             }
@@ -104,10 +127,10 @@ export default function SettingsPage() {
           <FormControlLabel
             control={
               <Switch
-                checked={settings.excludeFromBomByDefault}
+                checked={draft.excludeFromBomByDefault}
                 onChange={(event) =>
-                  setSettings({
-                    ...settings,
+                  setDraft({
+                    ...draft,
                     excludeFromBomByDefault: event.target.checked,
                   })
                 }

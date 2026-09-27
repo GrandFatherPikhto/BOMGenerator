@@ -6,6 +6,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 import App from './App.jsx';
+import { SettingsProvider } from './SettingsContext.jsx';
 
 const theme = createTheme({
   palette: { mode: 'light', primary: { main: '#1565c0' } },
@@ -16,7 +17,9 @@ createRoot(document.getElementById('root')).render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
-        <App />
+        <SettingsProvider>
+          <App />
+        </SettingsProvider>
       </BrowserRouter>
     </ThemeProvider>
   </React.StrictMode>,

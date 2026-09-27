@@ -8,6 +8,7 @@ import {
   MenuItem,
   Paper,
   Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -18,6 +19,7 @@ import {
 } from '@mui/material';
 
 import Pagination from './Pagination.jsx';
+import SellerLink from './SellerLink.jsx';
 
 const CATEGORY_SX = {
   fontWeight: 'bold',
@@ -228,24 +230,31 @@ export function LinesTable({ blocks, columns, renderDetail, rowSx, resetKey }) {
 
 const PAGE_SIZE_DEFAULT = 20;
 
-/** Seller dropdown bound to a row. */
+/** Seller dropdown bound to a row, with a link to the seller page. */
 export function SellerCell({ row, sellers, onChange }) {
+  const selected = row.sellerId
+    ? sellers.find((seller) => seller._id === row.sellerId) ?? null
+    : null;
+
   return (
-    <Select
-      size="small"
-      variant="standard"
-      displayEmpty
-      value={row.sellerId || ''}
-      onChange={(event) => onChange({ sellerId: event.target.value || null })}
-      sx={{ minWidth: 140 }}
-    >
-      <MenuItem value="">—</MenuItem>
-      {sellers.map((seller) => (
-        <MenuItem key={seller._id} value={seller._id}>
-          {seller.name}
-        </MenuItem>
-      ))}
-    </Select>
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <Select
+        size="small"
+        variant="standard"
+        displayEmpty
+        value={row.sellerId || ''}
+        onChange={(event) => onChange({ sellerId: event.target.value || null })}
+        sx={{ minWidth: 140 }}
+      >
+        <MenuItem value="">—</MenuItem>
+        {sellers.map((seller) => (
+          <MenuItem key={seller._id} value={seller._id}>
+            {seller.name}
+          </MenuItem>
+        ))}
+      </Select>
+      <SellerLink seller={selected} />
+    </Stack>
   );
 }
 
