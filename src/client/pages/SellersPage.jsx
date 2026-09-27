@@ -47,8 +47,8 @@ const EMPTY_PRODUCT = {
 };
 
 /**
- * Master-detail "Продавцы": the left list holds the shops, the right side the
- * products (offers) of the selected shop. A product carries the package
+ * Master-detail screen ("Продавцы/Товары"): the left list holds the shops, the
+ * right side the products (offers) of the selected shop. A product carries the package
  * quantity, the price and the delivery cost; the shop carries the (optional)
  * URL and a free-text description.
  */
@@ -197,7 +197,7 @@ export default function SellersPage() {
         alignItems="center"
         sx={{ mb: 2 }}
       >
-        <Typography variant="h5">Продавцы</Typography>
+        <Typography variant="h5">Продавцы/Товары</Typography>
         <Stack direction="row" spacing={1}>
           <Button
             variant="outlined"

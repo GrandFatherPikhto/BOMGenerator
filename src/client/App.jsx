@@ -17,7 +17,7 @@ const TABS = [
   { label: 'Закупки', value: '/purchases', to: '/purchases' },
   { label: 'Общие закупки', value: '/common', to: '/common' },
   { label: 'Докупить', value: '/manual', to: '/manual' },
-  { label: 'Продавцы', value: '/sellers', to: '/sellers' },
+  { label: 'Продавцы/Товары', value: '/sellers', to: '/sellers' },
   { label: 'Категории разбора', value: '/categories', to: '/categories' },
   { label: 'Настройки', value: '/settings', to: '/settings' },
 ];

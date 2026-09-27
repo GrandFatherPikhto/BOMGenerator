@@ -137,7 +137,7 @@ the Python project) and creates the "Докупить" service board.
   Reference designators are revealed per row with an arrow (collapsed by default).
 - **Общие закупки** — the same table with a `merged` / `by_board` toggle.
 - **Докупить** — the service board: add/edit/delete manual positions.
-- **Продавцы** — master-detail: the shop list on the left, the products of the
+- **Продавцы/Товары** — master-detail: the shop list on the left, the products of the
   selected shop on the right (CRUD with paging), plus import from CSV/Excel
   (sheet picker for XLSX, summary and warnings after import).
 - **Категории разбора** — CRUD table; regex errors are shown in the form before
