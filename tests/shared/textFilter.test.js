@@ -7,6 +7,7 @@ import {
   compileProductFilter,
   compileTextFilter,
   escapeRegExp,
+  scopeProducts,
 } from '../../src/shared/index.js';
 
 test('an empty pattern means "no condition"', () => {
@@ -100,6 +101,29 @@ test('the product filter understands regexes in both fields', () => {
   assert.equal(filter.match({ name: 'AD9707BCPZ', category: 'ЦАП' }), true);
   assert.equal(filter.match({ name: 'ADA4807-2ARM', category: 'ЦАП' }), true);
   assert.equal(filter.match({ name: 'LCD1602', category: 'Дисплеи' }), false);
+});
+
+test('scopeProducts narrows the list to one seller', () => {
+  const products = [
+    { name: 'A', sellerId: 's1' },
+    { name: 'B', sellerId: 's2' },
+    { name: 'C', sellerId: 's1' },
+  ];
+
+  const scoped = scopeProducts(products, { sellerId: 's1' });
+  assert.deepEqual(
+    scoped.map((product) => product.name),
+    ['A', 'C'],
+  );
+
+  // Scope off, or no seller picked: the whole list, so the search covers
+  // every shop.
+  assert.equal(
+    scopeProducts(products, { sellerId: 's1', onlySelectedSeller: false }).length,
+    3,
+  );
+  assert.equal(scopeProducts(products, { sellerId: null }).length, 3);
+  assert.equal(scopeProducts(products).length, 3);
 });
 
 test('escapeRegExp neutralises regex characters', () => {

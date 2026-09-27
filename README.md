@@ -141,7 +141,9 @@ the Python project) and creates the "Докупить" service board.
   selected shop on the right (CRUD with paging), plus import from CSV/Excel
   (sheet picker for XLSX, summary and warnings after import). Above the table
   there is a filter by **name** and by **category** (each field has a "регекс"
-  checkbox; an empty field means "no condition", both mean AND). A product
+  checkbox; an empty field means "no condition", both mean AND). The "только
+  выбранный магазин" checkbox keeps the search inside the selected shop; with it
+  off the search covers every shop. A product
   category is picked from a dropdown built from the categories already typed and
   the "Категории разбора" names, and a new one can still be typed.
 - **Категории разбора** — CRUD table; regex errors are shown in the form before

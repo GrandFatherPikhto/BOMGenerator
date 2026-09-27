@@ -50,6 +50,18 @@ export function compileTextFilter(value, { regex = false } = {}) {
 }
 
 /**
+ * Narrow a product list to one seller. With `onlySelectedSeller` off (or no
+ * seller selected) the whole list is returned, so the search runs across every
+ * shop.
+ */
+export function scopeProducts(products, { sellerId = null, onlySelectedSeller = true } = {}) {
+  if (!onlySelectedSeller || !sellerId) {
+    return products;
+  }
+  return products.filter((product) => product.sellerId === sellerId);
+}
+
+/**
  * Compile the product filter: an optional name and an optional category field,
  * combined with AND (fill one, the other, or both).
  *

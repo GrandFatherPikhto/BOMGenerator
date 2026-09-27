@@ -36,7 +36,7 @@ import Pagination from '../components/Pagination.jsx';
 import { usePagination } from '../hooks/usePagination.js';
 import { api } from '../lib/apiClient.js';
 import { formatMoney } from '../format.js';
-import { compileProductFilter } from '../../shared/index.js';
+import { compileProductFilter, scopeProducts } from '../../shared/index.js';
 
 const EMPTY_SELLER = { name: '', url: '', description: '' };
 const EMPTY_PRODUCT = {
@@ -77,6 +77,8 @@ export default function SellersPage() {
   const [nameRegex, setNameRegex] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [categoryRegex, setCategoryRegex] = useState(false);
+  // Search scope: the products of the selected shop only, or of every shop.
+  const [onlySelectedSeller, setOnlySelectedSeller] = useState(true);
 
   const filter = useMemo(
     () =>
@@ -88,9 +90,13 @@ export default function SellersPage() {
       }),
     [nameFilter, nameRegex, categoryFilter, categoryRegex],
   );
+  const scopedProducts = useMemo(
+    () => scopeProducts(products, { sellerId: selectedId, onlySelectedSeller }),
+    [products, selectedId, onlySelectedSeller],
+  );
   const visibleProducts = useMemo(
-    () => (filter.active ? products.filter(filter.match) : products),
-    [products, filter],
+    () => (filter.active ? scopedProducts.filter(filter.match) : scopedProducts),
+    [scopedProducts, filter],
   );
 
   const { page, pageSize, setPage, setPageSize, pageItems } =
@@ -119,17 +125,15 @@ export default function SellersPage() {
     setCategoryRegex(false);
   }
 
+  // The whole product list is loaded once: it is small, and with the scope
+  // checkbox off the search has to run across every shop anyway.
   const loadProducts = useCallback(async () => {
-    if (!selectedId) {
-      setProducts([]);
-      return;
-    }
     try {
-      setProducts(await api.sellers.products(selectedId));
+      setProducts(await api.products.list());
     } catch (loadError) {
       setError(loadError.message);
     }
-  }, [selectedId]);
+  }, []);
 
   useEffect(() => {
     loadSellers();
@@ -368,8 +372,8 @@ export default function SellersPage() {
                 <Typography variant="subtitle1">
                   Товары (
                   {filter.active
-                    ? `${visibleProducts.length} из ${products.length}`
-                    : products.length}
+                    ? `${visibleProducts.length} из ${scopedProducts.length}`
+                    : scopedProducts.length}
                   )
                 </Typography>
                 <Stack direction="row" spacing={1}>
@@ -436,6 +440,17 @@ export default function SellersPage() {
                   }
                   label="регекс"
                 />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={onlySelectedSeller}
+                      onChange={(event) => setOnlySelectedSeller(event.target.checked)}
+                    />
+                  }
+                  label="только выбранный магазин"
+                  sx={{ ml: 2 }}
+                />
               </Stack>
 
               <TableContainer component={Paper} variant="outlined">
@@ -488,9 +503,11 @@ export default function SellersPage() {
                       <TableRow>
                         <TableCell colSpan={9}>
                           <Typography variant="body2" color="text.secondary">
-                            {products.length === 0
-                              ? 'У этого продавца пока нет товаров.'
-                              : 'По фильтру ничего не найдено.'}
+                            {scopedProducts.length > 0
+                              ? 'По фильтру ничего не найдено.'
+                              : onlySelectedSeller && selectedId
+                                ? 'У этого продавца пока нет товаров.'
+                                : 'Товаров пока нет.'}
                           </Typography>
                         </TableCell>
                       </TableRow>

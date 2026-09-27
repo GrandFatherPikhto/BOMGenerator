@@ -25,4 +25,5 @@ export {
   escapeRegExp,
   compileTextFilter,
   compileProductFilter,
+  scopeProducts,
 } from './textFilter.js';
