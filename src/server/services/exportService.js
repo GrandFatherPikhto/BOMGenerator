@@ -6,6 +6,7 @@ import ExcelJS from 'exceljs';
 
 import { badRequest } from '../lib/httpError.js';
 import { Seller } from '../models/Seller.js';
+import { SellerProduct } from '../models/SellerProduct.js';
 import { getBoardView } from './boardService.js';
 
 export const EXPORT_FORMATS = ['xlsx', 'csv'];
@@ -30,12 +31,15 @@ const COLUMNS = [
   { label: 'Описание', key: 'description' },
 ];
 
-function toRows(view, sellerMap) {
+function toRows(view, productMap, sellerMap) {
   return view.blocks
     .filter((block) => block.kind === 'line')
     .map((block) => block.line)
     .map((line) => {
-      const seller = line.sellerId ? sellerMap.get(String(line.sellerId)) : null;
+      const product = line.productId
+        ? productMap.get(String(line.productId)) ?? null
+        : null;
+      const seller = product ? sellerMap.get(String(product.sellerId)) ?? null : null;
       return {
         category: line.category ?? '',
         subcategory: line.subcategory ?? '',
@@ -47,9 +51,10 @@ function toRows(view, sellerMap) {
         totalQty: line.totalQty ?? '',
         commonLabel: line.common ? 'Да' : '',
         sellerName: seller?.name ?? '',
-        sellerUrl: seller?.url ?? '',
-        packQty: seller?.packQty ?? '',
-        packPrice: seller?.packPrice ?? '',
+        // The product link wins; the seller page is the fallback.
+        sellerUrl: product?.url || seller?.url || '',
+        packQty: product?.packQty ?? '',
+        packPrice: product?.packPrice ?? '',
         packs: line.packs ?? '',
         shippingCost: line.shippingCost ?? '',
         cost: line.cost ?? '',
@@ -192,9 +197,13 @@ export async function exportBoard(boardId, format = 'xlsx') {
   }
 
   const view = await getBoardView(boardId);
-  const sellers = await Seller.find().lean();
+  const [products, sellers] = await Promise.all([
+    SellerProduct.find().lean(),
+    Seller.find().lean(),
+  ]);
+  const productMap = new Map(products.map((product) => [String(product._id), product]));
   const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
-  const rows = toRows(view, sellerMap);
+  const rows = toRows(view, productMap, sellerMap);
   const totals = {
     shippingCost: view.totals.shippingCost,
     cost: view.totals.cost,

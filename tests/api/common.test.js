@@ -7,6 +7,7 @@ import request from 'supertest';
 
 import {
   connectTestDb,
+  createSellerWithProduct,
   disconnectTestDb,
   findLine,
   linesOf,
@@ -75,22 +76,24 @@ test('seller and shipping set on the common sheet survive a re-import', async ()
   const boardA = await importBoard('Board A', 'Board-A.csv', 2);
   await markCommon(boardA.id, (line) => line.value === '100 nF');
 
-  const sellerResponse = await request(app)
-    .post('/api/sellers')
-    .send({ name: 'Mouser', packQty: 100, packPrice: 200 });
-  const sellerId = sellerResponse.body._id;
+  const { seller, product } = await createSellerWithProduct(
+    app,
+    { name: 'Mouser' },
+    { packQty: 100, packPrice: 200 },
+  );
 
   const common = await request(app).get('/api/common-purchases');
   const row = findLine(common.body, (line) => line.value === '100 nF');
 
   const putResponse = await request(app)
     .put('/api/common-purchases')
-    .send({ matchKey: row.matchKey, sellerId, shippingCost: 12 });
+    .send({ matchKey: row.matchKey, productId: product.id, shippingCost: 12 });
   assert.equal(putResponse.status, 200);
 
   const updated = await request(app).get('/api/common-purchases');
   const updatedRow = findLine(updated.body, (line) => line.value === '100 nF');
-  assert.equal(updatedRow.sellerId, sellerId);
+  assert.equal(updatedRow.productId, product.id);
+  assert.equal(updatedRow.sellerId, seller._id);
   assert.equal(updatedRow.shippingCost, 12);
   assert.equal(updatedRow.packs, 1); // ceil(2 / 100)
   assert.equal(updatedRow.cost, 212); // 1 * 200 + 12
@@ -100,7 +103,7 @@ test('seller and shipping set on the common sheet survive a re-import', async ()
   await importBoard('Board A', 'Board-A.csv', 2);
   const after = await request(app).get('/api/common-purchases');
   const afterRow = findLine(after.body, (line) => line.value === '100 nF');
-  assert.equal(afterRow.sellerId, sellerId);
+  assert.equal(afterRow.productId, product.id);
   assert.equal(afterRow.shippingCost, 12);
 });
 

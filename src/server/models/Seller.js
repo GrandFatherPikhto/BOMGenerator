@@ -1,19 +1,14 @@
-// A seller (supplier) and the packaging/cost data used for calculations.
+// A seller (shop). Its products are stored in `SellerProduct` (1:N).
 import mongoose from 'mongoose';
 
 const sellerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true, trim: true },
-    category: { type: String, default: '' }, // informational
-    // Informational mask such as "Capacitor_SMD:C_0402_*"; not used for
-    // automatic filtering.
-    footprint: { type: String, default: '' },
+    // Page of the shop; may be empty.
     url: { type: String, default: '' },
-    packQty: { type: Number, default: 1, min: 1 },
-    packPrice: { type: Number, default: 0, min: 0 },
+    description: { type: String, default: '' },
     // Historical shipping cost (informational); row shipping is entered by hand.
     shippingCost: { type: Number, default: 0, min: 0 },
-    description: { type: String, default: '' },
   },
   { timestamps: true },
 );

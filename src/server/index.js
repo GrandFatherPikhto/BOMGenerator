@@ -5,6 +5,7 @@ import { createApp } from './app.js';
 import { connectDatabase } from './db.js';
 import { ensureServiceBoard } from './services/boardService.js';
 import { seedDefaults } from './services/categoryService.js';
+import { migrateSellersToProducts } from './services/migrationService.js';
 import { getSettings } from './services/settingsService.js';
 
 const port = Number(process.env.PORT || 3000);
@@ -24,6 +25,11 @@ async function main() {
   await getSettings();
   await seedDefaults();
   await ensureServiceBoard();
+
+  const migration = await migrateSellersToProducts();
+  if (migration.productsCreated || migration.linesUpdated || migration.overridesUpdated) {
+    console.log('Sellers migrated to products:', migration);
+  }
 
   const app = createApp();
   app.listen(port, () => {

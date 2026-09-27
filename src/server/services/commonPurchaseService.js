@@ -4,6 +4,7 @@ import { Board } from '../models/Board.js';
 import { BomLine } from '../models/BomLine.js';
 import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
 import { Seller } from '../models/Seller.js';
+import { SellerProduct } from '../models/SellerProduct.js';
 import { listRuntimeCategories } from './categoryService.js';
 import { classifyLine, groupIntoBlocks, serializeBlocks } from './grouping.js';
 import { getSettings } from './settingsService.js';
@@ -15,16 +16,19 @@ export async function getCommonPurchases(mode = 'merged') {
     throw badRequest(`mode must be one of ${COMMON_MODES.join(', ')}`);
   }
 
-  const [settings, categories, sellers, boards, lines, overrides] = await Promise.all([
-    getSettings(),
-    listRuntimeCategories(),
-    Seller.find().lean(),
-    Board.find().lean(),
-    BomLine.find({ common: true }).lean(),
-    CommonPurchaseOverride.find().lean(),
-  ]);
+  const [settings, categories, sellers, products, boards, lines, overrides] =
+    await Promise.all([
+      getSettings(),
+      listRuntimeCategories(),
+      Seller.find().lean(),
+      SellerProduct.find().lean(),
+      Board.find().lean(),
+      BomLine.find({ common: true }).lean(),
+      CommonPurchaseOverride.find().lean(),
+    ]);
 
   const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
+  const productMap = new Map(products.map((product) => [String(product._id), product]));
   // Only boards that are enabled AND marked "in common purchases" contribute.
   const boardMap = new Map(
     boards
@@ -60,16 +64,18 @@ export async function getCommonPurchases(mode = 'merged') {
   const rows = [];
   for (const group of groups.values()) {
     const override = overrideMap.get(group.matchKey) ?? {};
-    const seller = override.sellerId
-      ? sellerMap.get(String(override.sellerId)) ?? null
+    const product = override.productId
+      ? productMap.get(String(override.productId)) ?? null
       : null;
+    const seller = product ? sellerMap.get(String(product.sellerId)) ?? null : null;
     const shippingCost = override.shippingCost ?? null;
     const packsOverride = override.packsOverride ?? null;
     const packs =
-      packsOverride ?? (seller ? Math.ceil(group.totalQty / seller.packQty) : null);
+      packsOverride ??
+      (product ? Math.ceil(group.totalQty / (product.packQty || 1)) : null);
     const cost =
-      packs !== null && seller
-        ? packs * seller.packPrice + (shippingCost || 0)
+      packs !== null && product
+        ? packs * product.packPrice + (shippingCost || 0)
         : null;
     const { parsed, display, category, subcategory, sort } = classifyLine(
       { reference: group.reference, value: group.value, footprint: group.footprint },
@@ -84,7 +90,8 @@ export async function getCommonPurchases(mode = 'merged') {
       footprint: group.footprint,
       totalQty: group.totalQty,
       byBoard: mode === 'by_board' ? group.byBoard : undefined,
-      sellerId: override.sellerId ? String(override.sellerId) : null,
+      productId: product ? String(product._id) : null,
+      sellerId: seller ? String(seller._id) : null,
       shippingCost,
       packsOverride,
       packs,
@@ -125,15 +132,15 @@ export async function setCommonOverride(matchKey, payload = {}) {
     doc = new CommonPurchaseOverride({ matchKey: key });
   }
 
-  if (payload.sellerId !== undefined) {
-    if (!payload.sellerId) {
-      doc.sellerId = null;
+  if (payload.productId !== undefined) {
+    if (!payload.productId) {
+      doc.productId = null;
     } else {
-      const seller = await Seller.findById(payload.sellerId);
-      if (!seller) {
-        throw badRequest('sellerId does not exist');
+      const product = await SellerProduct.findById(payload.productId);
+      if (!product) {
+        throw badRequest('productId does not exist');
       }
-      doc.sellerId = seller._id;
+      doc.productId = product._id;
     }
   }
 

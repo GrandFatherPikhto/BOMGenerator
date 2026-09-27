@@ -1,12 +1,9 @@
-// Import a seller list from CSV or Excel.
+// Import a seller/product list from CSV or Excel.
 //
-// Rules (agreed with the owner):
-// * sellers are matched by URL;
-// * an existing seller (same URL) gets only `name` and `url` updated — its
-//   packaging quantity, price, shipping, category and description are kept;
-// * a new seller is created with every column of the file;
-// * duplicate URLs inside the file: the first row wins;
-// * rows without a URL or without a name are skipped with a warning.
+// Two formats are accepted (see lib/sellerImport.js). Each row produces a
+// seller (matched by name) and a product of that seller (matched by URL, or by
+// name when the URL is empty). Existing products get only their name/URL
+// refreshed; packaging, price, category and description are kept.
 import { badRequest } from '../lib/httpError.js';
 import {
   normalizeUrl,
@@ -15,6 +12,7 @@ import {
   readWorkbookSheetNames,
 } from '../lib/sellerImport.js';
 import { Seller } from '../models/Seller.js';
+import { SellerProduct } from '../models/SellerProduct.js';
 
 const XLSX_EXTENSION = /\.(xlsx|xlsm)$/i;
 
@@ -49,110 +47,108 @@ export async function importSellers({ buffer, fileName, sheet }) {
   }
   if (!parsed.found) {
     throw badRequest(
-      'Could not find a header row with "URL"/"Название" columns in the file',
+      'Could not find a header row with seller/product columns in the file',
     );
   }
 
   const warnings = [];
-  const summary = { added: 0, updated: 0, unchanged: 0, skipped: 0, total: parsed.rows.length };
+  const summary = {
+    added: 0,
+    updated: 0,
+    unchanged: 0,
+    skipped: 0,
+    total: parsed.rows.length,
+    sellersCreated: 0,
+    sellersUpdated: 0,
+  };
 
-  // First-occurrence-wins deduplication by URL.
-  const rowsByUrl = new Map();
+  // Deduplicate by seller + product (url when present, else name); first wins.
+  const seen = new Map();
+  const rows = [];
   for (const row of parsed.rows) {
-    if (!row.url) {
-      warnings.push(`Row ${row.rowNumber}: skipped (no URL)`);
+    if (!row.sellerName) {
+      warnings.push(`Row ${row.rowNumber}: skipped (no seller name)`);
       summary.skipped += 1;
       continue;
     }
-    if (!row.name) {
-      warnings.push(`Row ${row.rowNumber}: skipped (no name) for ${row.url}`);
+    if (!row.productName) {
+      warnings.push(`Row ${row.rowNumber}: skipped (no product name)`);
       summary.skipped += 1;
       continue;
     }
-    const first = rowsByUrl.get(row.url);
+    const key = `${row.sellerName.toLowerCase()}\u0000${
+      row.productUrl || row.productName.toLowerCase()
+    }`;
+    const first = seen.get(key);
     if (first) {
-      warnings.push(
-        `Row ${row.rowNumber}: duplicate URL, keeping row ${first.rowNumber}`,
-      );
+      warnings.push(`Row ${row.rowNumber}: duplicate, keeping row ${first}`);
       summary.skipped += 1;
       continue;
     }
-    rowsByUrl.set(row.url, row);
+    seen.set(key, row.rowNumber);
+    rows.push(row);
   }
 
   const existingSellers = await Seller.find().lean();
-  const sellerByUrl = new Map();
-  const sellerByName = new Map();
-  for (const seller of existingSellers) {
-    const key = normalizeUrl(seller.url);
-    if (key) {
-      sellerByUrl.set(key, seller);
+  const sellerByName = new Map(existingSellers.map((seller) => [seller.name, seller]));
+  const productsBySeller = new Map();
+
+  async function productsOf(seller) {
+    const key = String(seller._id);
+    if (!productsBySeller.has(key)) {
+      productsBySeller.set(key, await SellerProduct.find({ sellerId: seller._id }).lean());
     }
-    sellerByName.set(seller.name, seller);
+    return productsBySeller.get(key);
   }
 
-  for (const row of rowsByUrl.values()) {
-    const current = sellerByUrl.get(row.url);
+  for (const row of rows) {
+    let seller = sellerByName.get(row.sellerName);
+    if (!seller) {
+      seller = await Seller.create({ name: row.sellerName, url: row.sellerUrl });
+      sellerByName.set(row.sellerName, seller);
+      productsBySeller.set(String(seller._id), []);
+      summary.sellersCreated += 1;
+    } else if (row.sellerUrl && normalizeUrl(seller.url) !== row.sellerUrl) {
+      await Seller.updateOne({ _id: seller._id }, { $set: { url: row.sellerUrl } });
+      seller.url = row.sellerUrl;
+      summary.sellersUpdated += 1;
+    }
+
+    const products = await productsOf(seller);
+    const current = row.productUrl
+      ? products.find((product) => normalizeUrl(product.url) === row.productUrl)
+      : products.find((product) => product.name === row.productName);
 
     if (current) {
-      const nameOwner = sellerByName.get(row.name);
-      if (nameOwner && String(nameOwner._id) !== String(current._id)) {
-        warnings.push(
-          `Row ${row.rowNumber}: name "${row.name}" already belongs to another seller, skipped`,
-        );
-        summary.skipped += 1;
-        continue;
-      }
-
       const changes = {};
-      if (current.name !== row.name) {
-        changes.name = row.name;
-        sellerByName.delete(current.name);
-        sellerByName.set(row.name, current);
+      if (current.name !== row.productName) {
+        changes.name = row.productName;
       }
-      if (normalizeUrl(current.url) !== row.url) {
-        changes.url = row.url;
+      if (row.productUrl && normalizeUrl(current.url) !== row.productUrl) {
+        changes.url = row.productUrl;
       }
-
       if (Object.keys(changes).length === 0) {
         summary.unchanged += 1;
       } else {
-        // Only name/url: packaging, price, shipping, category, description stay.
-        await Seller.updateOne({ _id: current._id }, { $set: changes });
+        await SellerProduct.updateOne({ _id: current._id }, { $set: changes });
+        Object.assign(current, changes);
         summary.updated += 1;
       }
       continue;
     }
 
-    if (sellerByName.has(row.name)) {
-      warnings.push(
-        `Row ${row.rowNumber}: name "${row.name}" is already in use, skipped`,
-      );
-      summary.skipped += 1;
-      continue;
-    }
-
-    try {
-      const created = await Seller.create({
-        name: row.name,
-        category: row.category,
-        url: row.url,
-        packQty: row.packQty,
-        packPrice: row.packPrice,
-        shippingCost: row.shippingCost,
-        description: row.description,
-      });
-      sellerByName.set(created.name, created);
-      sellerByUrl.set(row.url, created);
-      summary.added += 1;
-    } catch (error) {
-      if (error?.code === 11000) {
-        warnings.push(`Row ${row.rowNumber}: duplicate name "${row.name}", skipped`);
-        summary.skipped += 1;
-      } else {
-        throw error;
-      }
-    }
+    const created = await SellerProduct.create({
+      sellerId: seller._id,
+      name: row.productName,
+      url: row.productUrl,
+      packQty: row.packQty,
+      packPrice: row.packPrice,
+      category: row.category,
+      description: row.description,
+      footprint: '',
+    });
+    products.push(created);
+    summary.added += 1;
   }
 
   return { summary, warnings, sheets: parsed.sheetNames };

@@ -11,6 +11,7 @@ import { Board, SERVICE_BOARD_NAME } from '../models/Board.js';
 import { BomLine } from '../models/BomLine.js';
 import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
 import { Seller } from '../models/Seller.js';
+import { SellerProduct } from '../models/SellerProduct.js';
 import { listRuntimeCategories } from './categoryService.js';
 import { classifyLine, groupIntoBlocks, serializeBlocks } from './grouping.js';
 import { getSettings } from './settingsService.js';
@@ -118,7 +119,7 @@ export async function deleteBoard(id) {
   return board;
 }
 
-function computeRow(line, board, sellerMap, categories, settings, common) {
+function computeRow(line, board, productMap, sellerMap, categories, settings, common) {
   const { parsed, display, category, subcategory, sort } = classifyLine(
     line,
     categories,
@@ -126,16 +127,17 @@ function computeRow(line, board, sellerMap, categories, settings, common) {
   );
   const isCommon = Boolean(line.common);
 
-  // A "Общие" position is purchased on the "Common purchases" sheet: its seller,
-  // shipping and packages come from the shared override (and the need is summed
-  // across all boards), not from this line.
+  // A "Общие" position is purchased on the "Common purchases" sheet: its
+  // product, shipping and packages come from the shared override (and the need
+  // is summed across all boards), not from this line.
   const override = isCommon ? common.overrideByKey.get(line.matchKey) ?? null : null;
-  const effectiveSellerId = isCommon
-    ? override?.sellerId ?? null
-    : line.sellerId ?? null;
-  const seller = effectiveSellerId
-    ? sellerMap.get(String(effectiveSellerId)) ?? null
+  const effectiveProductId = isCommon
+    ? override?.productId ?? null
+    : line.productId ?? null;
+  const product = effectiveProductId
+    ? productMap.get(String(effectiveProductId)) ?? null
     : null;
+  const seller = product ? sellerMap.get(String(product.sellerId)) ?? null : null;
 
   const totalQty = (line.qty ?? 0) * (board.count ?? 1);
   const purchaseQty = isCommon
@@ -145,12 +147,15 @@ function computeRow(line, board, sellerMap, categories, settings, common) {
     ? override?.packsOverride ?? null
     : line.packsOverride ?? null;
   const packs =
-    packsOverride ?? (seller ? Math.ceil(purchaseQty / seller.packQty) : null);
+    packsOverride ??
+    (product ? Math.ceil(purchaseQty / (product.packQty || 1)) : null);
   const shippingCost = isCommon
     ? override?.shippingCost ?? null
     : line.shippingCost ?? null;
   const cost =
-    packs !== null && seller ? packs * seller.packPrice + (shippingCost || 0) : null;
+    packs !== null && product
+      ? packs * product.packPrice + (shippingCost || 0)
+      : null;
 
   return {
     id: String(line._id),
@@ -160,7 +165,8 @@ function computeRow(line, board, sellerMap, categories, settings, common) {
     valueRaw: line.value ?? '',
     footprint: line.footprint ?? '',
     matchKey: line.matchKey,
-    sellerId: effectiveSellerId ? String(effectiveSellerId) : null,
+    productId: product ? String(product._id) : null,
+    sellerId: seller ? String(seller._id) : null,
     common: isCommon,
     shippingCost,
     description: line.description ?? '',
@@ -188,17 +194,27 @@ export async function getBoardView(boardId) {
   if (!board) {
     throw notFound('Board not found');
   }
-  const [settings, categories, lines, sellers, boards, commonLines, overrides] =
-    await Promise.all([
-      getSettings(),
-      listRuntimeCategories(),
-      BomLine.find({ boardId: board._id }).lean(),
-      Seller.find().lean(),
-      Board.find().lean(),
-      BomLine.find({ common: true }).lean(),
-      CommonPurchaseOverride.find().lean(),
-    ]);
+  const [
+    settings,
+    categories,
+    lines,
+    sellers,
+    products,
+    boards,
+    commonLines,
+    overrides,
+  ] = await Promise.all([
+    getSettings(),
+    listRuntimeCategories(),
+    BomLine.find({ boardId: board._id }).lean(),
+    Seller.find().lean(),
+    SellerProduct.find().lean(),
+    Board.find().lean(),
+    BomLine.find({ common: true }).lean(),
+    CommonPurchaseOverride.find().lean(),
+  ]);
   const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
+  const productMap = new Map(products.map((product) => [String(product._id), product]));
 
   // Only boards that are enabled AND marked "in common purchases" contribute.
   const participatingCount = new Map(
@@ -221,7 +237,7 @@ export async function getBoardView(boardId) {
   };
 
   const rows = lines.map((line) =>
-    computeRow(line, board, sellerMap, categories, settings, common),
+    computeRow(line, board, productMap, sellerMap, categories, settings, common),
   );
   const blocks = groupIntoBlocks(rows, categories, settings);
 
@@ -252,15 +268,15 @@ export async function updateLine(lineId, payload = {}) {
   }
   const errors = [];
 
-  if (payload.sellerId !== undefined) {
-    if (payload.sellerId === null || payload.sellerId === '') {
-      line.sellerId = null;
+  if (payload.productId !== undefined) {
+    if (payload.productId === null || payload.productId === '') {
+      line.productId = null;
     } else {
-      const seller = await Seller.findById(payload.sellerId);
-      if (!seller) {
-        errors.push('sellerId does not exist');
+      const product = await SellerProduct.findById(payload.productId);
+      if (!product) {
+        errors.push('productId does not exist');
       } else {
-        line.sellerId = seller._id;
+        line.productId = product._id;
       }
     }
   }

@@ -8,6 +8,7 @@ import express from 'express';
 import boardsRouter from './routes/boards.js';
 import categoriesRouter from './routes/categories.js';
 import commonPurchasesRouter from './routes/commonPurchases.js';
+import productsRouter from './routes/products.js';
 import sellersRouter from './routes/sellers.js';
 import settingsRouter from './routes/settings.js';
 
@@ -44,6 +45,7 @@ export function createApp() {
 
   app.use('/api/boards', boardsRouter);
   app.use('/api/sellers', sellersRouter);
+  app.use('/api/products', productsRouter);
   app.use('/api/categories', categoriesRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/common-purchases', commonPurchasesRouter);

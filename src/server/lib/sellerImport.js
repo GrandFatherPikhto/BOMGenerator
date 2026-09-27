@@ -1,17 +1,23 @@
-// Parsing of seller lists from CSV and Excel (*.xlsx).
+// Parsing of seller/product lists from CSV and Excel (*.xlsx).
 //
-// Supports both files in `techdocs/examples`: a semicolon-delimited CP1251 CSV
-// and an XLSX workbook with a selectable sheet. Columns are matched by header
-// name (Russian headers of the Seller model plus a few aliases); extra columns
-// are ignored.
+// Two formats are supported:
+//   * two-level: "Продавец | URL продавца | Товар | URL товара | ..." — one
+//     seller with many products;
+//   * legacy: "Название | Категория | URL | Кол-во в упаковке | ..." — each row
+//     becomes a seller (name/url) plus an attached product with the same
+//     name/url, so the old files convert without any loss.
 import { parse } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 
-// Seller field -> accepted header names (compared case-insensitively).
+// Field -> accepted header names (compared case-insensitively).
 const HEADER_ALIASES = {
-  name: ['название', 'наименование', 'продавец', 'name'],
+  sellerName: ['продавец', 'название продавца', 'seller'],
+  sellerUrl: ['url продавца', 'ссылка продавца', 'seller url'],
+  productName: ['товар', 'название товара', 'продукт', 'product'],
+  productUrl: ['url товара', 'ссылка товара', 'product url'],
+  name: ['название', 'наименование', 'name'],
+  url: ['url', 'ссылка', 'link'],
   category: ['категория', 'category'],
-  url: ['url', 'ссылка', 'ссылка закупки', 'link'],
   packQty: [
     'кол-во в упаковке',
     'количество в упаковке',
@@ -27,6 +33,7 @@ const HEADER_ALIASES = {
 };
 
 const SELLER_FIELDS = Object.keys(HEADER_ALIASES);
+const HEADER_HINTS = ['sellerName', 'productName', 'name', 'url', 'productUrl'];
 
 function normalizeHeader(value) {
   return String(value ?? '')
@@ -168,7 +175,7 @@ function findHeaderRow(matrix) {
         matched.add(field);
       }
     }
-    if (matched.has('url') || matched.has('name')) {
+    if (HEADER_HINTS.some((field) => matched.has(field))) {
       return { index, cells };
     }
   }
@@ -195,17 +202,23 @@ function toNumber(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function normalizeText(value) {
+  return extractText(value).replace(/\s+/g, ' ').trim();
+}
+
 /**
- * Turn a matrix (array of rows of raw cells) into seller row objects.
- * The header row is detected by looking for "URL"/"Название" cells, so leading
- * title rows are tolerated.
+ * Turn a matrix (array of rows of raw cells) into seller/product row objects.
+ * The header row is detected by looking for the known columns, so leading title
+ * rows are tolerated.
  */
 export function mapSellerMatrix(matrix) {
   const header = findHeaderRow(matrix);
   if (!header) {
-    return { rows: [], found: false };
+    return { rows: [], found: false, twoLevel: false };
   }
   const columnMap = buildColumnMap(header.cells);
+  const twoLevel =
+    columnMap.sellerName !== undefined || columnMap.productName !== undefined;
   const rows = [];
 
   for (let index = header.index + 1; index < matrix.length; index += 1) {
@@ -217,25 +230,42 @@ export function mapSellerMatrix(matrix) {
       continue;
     }
     const pick = (field) =>
-      columnMap[field] === undefined ? '' : rawRow[columnMap[field]];
+      columnMap[field] === undefined ? undefined : rawRow[columnMap[field]];
+    const urlOf = (field) => normalizeUrl(extractUrl(pick(field)));
 
-    const packQtyRaw = pick('packQty');
-    const packPriceRaw = pick('packPrice');
-    const shippingRaw = pick('shippingCost');
+    const legacyName = normalizeText(pick('name'));
+    const legacyUrl = urlOf('url');
+
+    // Two-level format uses the dedicated columns; legacy rows are treated as a
+    // seller with an attached product carrying the same name and URL.
+    const sellerName = columnMap.sellerName === undefined
+      ? legacyName
+      : normalizeText(pick('sellerName'));
+    const sellerUrl = columnMap.sellerUrl === undefined
+      ? legacyUrl
+      : urlOf('sellerUrl');
+    const productName = columnMap.productName === undefined
+      ? legacyName
+      : normalizeText(pick('productName'));
+    const productUrl = columnMap.productUrl === undefined
+      ? legacyUrl
+      : urlOf('productUrl');
 
     rows.push({
       rowNumber: index + 1,
-      name: extractText(pick('name')).replace(/\s+/g, ' ').trim(),
-      category: extractText(pick('category')).replace(/\s+/g, ' ').trim(),
-      url: normalizeUrl(extractUrl(pick('url'))),
-      packQty: Math.max(1, Math.trunc(toNumber(packQtyRaw, 1))),
-      packPrice: Math.max(0, toNumber(packPriceRaw, 0)),
-      shippingCost: Math.max(0, toNumber(shippingRaw, 0)),
-      description: extractText(pick('description')).replace(/\s+/g, ' ').trim(),
+      sellerName,
+      sellerUrl,
+      productName,
+      productUrl,
+      category: normalizeText(pick('category')),
+      packQty: Math.max(1, Math.trunc(toNumber(pick('packQty'), 1))),
+      packPrice: Math.max(0, toNumber(pick('packPrice'), 0)),
+      shippingCost: Math.max(0, toNumber(pick('shippingCost'), 0)),
+      description: normalizeText(pick('description')),
     });
   }
 
-  return { rows, found: true };
+  return { rows, found: true, twoLevel };
 }
 
 /** Parse a CSV buffer (any of the supported encodings/delimiters). */

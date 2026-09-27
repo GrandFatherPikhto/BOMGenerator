@@ -10,6 +10,7 @@ import {
   listSellers,
   updateSeller,
 } from '../services/sellerService.js';
+import { createProduct, listProducts } from '../services/productService.js';
 import {
   importSellers,
   listSellerSheets,
@@ -67,6 +68,21 @@ router.get(
   '/:id',
   asyncHandler(async (req, res) => {
     res.json(await getSeller(req.params.id));
+  }),
+);
+
+// Products of one seller (1:N).
+router.get(
+  '/:id/products',
+  asyncHandler(async (req, res) => {
+    res.json(await listProducts({ sellerId: req.params.id }));
+  }),
+);
+
+router.post(
+  '/:id/products',
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await createProduct(req.params.id, req.body));
   }),
 );
 

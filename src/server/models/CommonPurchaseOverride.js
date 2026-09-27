@@ -8,9 +8,9 @@ import mongoose from 'mongoose';
 const commonPurchaseOverrideSchema = new mongoose.Schema(
   {
     matchKey: { type: String, required: true, unique: true },
-    sellerId: {
+    productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Seller',
+      ref: 'SellerProduct',
       default: null,
     },
     shippingCost: { type: Number, default: null },

@@ -19,9 +19,10 @@ const bomLineSchema = new mongoose.Schema(
     // Remaining CSV columns kept verbatim (DNP, Datasheet, ...).
     raw: { type: mongoose.Schema.Types.Mixed, default: {} },
     // Hand-filled fields that survive a re-import.
-    sellerId: {
+    // Chosen product (offer); the seller is derived from it.
+    productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Seller',
+      ref: 'SellerProduct',
       default: null,
     },
     common: { type: Boolean, default: false },

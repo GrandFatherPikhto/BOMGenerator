@@ -1,6 +1,7 @@
 // Shared setup for API integration tests. They run against a real local
 // MongoDB using the database from MONGODB_URI_TEST (dropped before each test).
 import mongoose from 'mongoose';
+import request from 'supertest';
 
 import { createApp } from '../../src/server/app.js';
 import { ensureServiceBoard } from '../../src/server/services/boardService.js';
@@ -59,4 +60,26 @@ export function blockNames(body, kind) {
 
 export function serviceBoardId(boards) {
   return boards.find((board) => board.isService)?.id;
+}
+
+/**
+ * Create a seller with one product and return both (the product carries the
+ * packaging data used by the calculations).
+ */
+export async function createSellerWithProduct(
+  app,
+  { name = 'Seller', url = '' } = {},
+  { productName, packQty = 1, packPrice = 0, productUrl = '' } = {},
+) {
+  const sellerResponse = await request(app).post('/api/sellers').send({ name, url });
+  const seller = sellerResponse.body;
+  const productResponse = await request(app)
+    .post(`/api/sellers/${seller._id}/products`)
+    .send({
+      name: productName ?? `${name} product`,
+      url: productUrl,
+      packQty,
+      packPrice,
+    });
+  return { seller, product: productResponse.body };
 }

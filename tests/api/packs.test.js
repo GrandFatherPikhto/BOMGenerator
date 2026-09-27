@@ -4,7 +4,13 @@ import { after, before, beforeEach, test } from 'node:test';
 
 import request from 'supertest';
 
-import { connectTestDb, disconnectTestDb, findLine, prepareApp } from './helpers.js';
+import {
+  connectTestDb,
+  createSellerWithProduct,
+  disconnectTestDb,
+  findLine,
+  prepareApp,
+} from './helpers.js';
 
 let app;
 
@@ -28,10 +34,6 @@ async function importBoard(name, fileName, count) {
   return boardId;
 }
 
-async function createSeller(payload) {
-  return (await request(app).post('/api/sellers').send(payload)).body;
-}
-
 async function lineOf(boardId, predicate = () => true) {
   const view = (await request(app).get(`/api/boards/${boardId}/lines`)).body;
   return { view, line: findLine(view, predicate) };
@@ -39,12 +41,16 @@ async function lineOf(boardId, predicate = () => true) {
 
 test('packs override on a board line drives packs and cost', async () => {
   const boardId = await importBoard('Board A', 'Board-A.csv');
-  const seller = await createSeller({ name: 'ChipDip', packQty: 100, packPrice: 50 });
+  const { product } = await createSellerWithProduct(
+    app,
+    { name: 'ChipDip' },
+    { packQty: 100, packPrice: 50 },
+  );
   const { line } = await lineOf(boardId);
 
   await request(app)
     .put(`/api/boards/${boardId}/lines/${line.id}`)
-    .send({ sellerId: seller._id, shippingCost: 7, packsOverride: 5 });
+    .send({ productId: product.id, shippingCost: 7, packsOverride: 5 });
 
   const { view, line: updated } = await lineOf(boardId);
   assert.equal(updated.packsOverride, 5);
@@ -68,10 +74,14 @@ test('packs override rejects non-integer and negative values', async () => {
   assert.equal(negative.status, 400);
 });
 
-test('common rows take seller/packs/shipping from the common sheet', async () => {
+test('common rows take product/packs/shipping from the common sheet', async () => {
   const boardA = await importBoard('Board A', 'Board-A.csv', 2);
   const boardB = await importBoard('Board B', 'Board-B.csv', 3);
-  const seller = await createSeller({ name: 'Mouser', packQty: 1000, packPrice: 2000 });
+  const { seller, product } = await createSellerWithProduct(
+    app,
+    { name: 'Mouser' },
+    { packQty: 1000, packPrice: 2000 },
+  );
 
   // Mark the same position as common on both boards.
   for (const boardId of [boardA, boardB]) {
@@ -88,7 +98,7 @@ test('common rows take seller/packs/shipping from the common sheet', async () =>
   // Auto packages: ceil(5 / 1000) = 1.
   const auto = await request(app)
     .put('/api/common-purchases')
-    .send({ matchKey: row.matchKey, sellerId: seller._id, shippingCost: 10 });
+    .send({ matchKey: row.matchKey, productId: product.id, shippingCost: 10 });
   assert.equal(auto.status, 200);
 
   let after = (await request(app).get('/api/common-purchases')).body;
@@ -110,6 +120,7 @@ test('common rows take seller/packs/shipping from the common sheet', async () =>
   // from the board total.
   const { view, line } = await lineOf(boardA, (item) => item.value === '100 nF');
   assert.equal(line.common, true);
+  assert.equal(line.productId, product.id);
   assert.equal(line.sellerId, seller._id);
   assert.equal(line.packs, 2);
   assert.equal(line.shippingCost, 10);

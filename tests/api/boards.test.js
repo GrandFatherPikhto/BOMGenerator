@@ -7,6 +7,7 @@ import request from 'supertest';
 import {
   blockNames,
   connectTestDb,
+  createSellerWithProduct,
   disconnectTestDb,
   findLine,
   linesOf,
@@ -83,23 +84,20 @@ test('re-import keeps hand-filled fields and removes missing lines', async () =>
   const first = await importBoard(CSV_V1, 'Test Board', 'Test-Board.csv');
   const boardId = first.body.board.id;
 
-  const sellerResponse = await request(app).post('/api/sellers').send({
-    name: 'ChipDip',
-    packQty: 100,
-    packPrice: 50,
-    shippingCost: 0,
-  });
-  assert.equal(sellerResponse.status, 201);
-  const sellerId = sellerResponse.body._id;
+  const { seller, product } = await createSellerWithProduct(
+    app,
+    { name: 'ChipDip' },
+    { packQty: 100, packPrice: 50 },
+  );
 
   const view = await request(app).get(`/api/boards/${boardId}/lines`);
   const resistor = findLine(view.body, (line) => line.footprint.includes('R_0402'));
 
-  // Not marked "Общие": a common row would take seller/shipping from the
+  // Not marked "Общие": a common row would take product/shipping from the
   // common sheet anyway (see tests/api/packs.test.js).
   const update = await request(app)
     .put(`/api/boards/${boardId}/lines/${resistor.id}`)
-    .send({ sellerId, shippingCost: 5 });
+    .send({ productId: product.id, shippingCost: 5 });
   assert.equal(update.status, 200);
 
   // Re-import the same file name with changed quantities.
@@ -117,7 +115,8 @@ test('re-import keeps hand-filled fields and removes missing lines', async () =>
   const resistorAfter = findLine(after.body, (line) => line.footprint.includes('R_0402'));
   assert.equal(resistorAfter.qty, 3); // CSV field refreshed
   assert.equal(resistorAfter.reference, 'R1');
-  assert.equal(resistorAfter.sellerId, sellerId); // hand-filled kept
+  assert.equal(resistorAfter.productId, product.id); // hand-filled kept
+  assert.equal(resistorAfter.sellerId, seller._id);
   assert.equal(resistorAfter.common, false);
   assert.equal(resistorAfter.shippingCost, 5);
 
@@ -132,10 +131,11 @@ test('board count multiplies the total and seller gives packs/cost', async () =>
 
   await request(app).put(`/api/boards/${boardId}`).send({ count: 2 });
 
-  const sellerResponse = await request(app)
-    .post('/api/sellers')
-    .send({ name: 'Ali', packQty: 5, packPrice: 10 });
-  const sellerId = sellerResponse.body._id;
+  const { product } = await createSellerWithProduct(
+    app,
+    { name: 'Ali' },
+    { packQty: 5, packPrice: 10 },
+  );
 
   const view = await request(app).get(`/api/boards/${boardId}/lines`);
   const capacitor = findLine(
@@ -146,7 +146,7 @@ test('board count multiplies the total and seller gives packs/cost', async () =>
 
   await request(app)
     .put(`/api/boards/${boardId}/lines/${capacitor.id}`)
-    .send({ sellerId, shippingCost: 7 });
+    .send({ productId: product.id, shippingCost: 7 });
 
   const viewAfter = await request(app).get(`/api/boards/${boardId}/lines`);
   const capacitorAfter = findLine(viewAfter.body, (line) => line.value === '100 nF');

@@ -1,0 +1,60 @@
+// One-off (idempotent) migration: split the old `Seller` (which carried the
+// package quantity and price) into a `Seller` plus its first `SellerProduct`,
+// and repoint the BOM lines and common-purchase overrides from `sellerId` to
+// `productId`.
+import { BomLine } from '../models/BomLine.js';
+import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
+import { Seller } from '../models/Seller.js';
+import { SellerProduct } from '../models/SellerProduct.js';
+
+export async function migrateSellersToProducts() {
+  const sellers = await Seller.find().lean();
+  let productsCreated = 0;
+  let linesUpdated = 0;
+  let overridesUpdated = 0;
+
+  for (const seller of sellers) {
+    // One product per migrated seller; found by name so a re-run is a no-op.
+    let product = await SellerProduct.findOne({
+      sellerId: seller._id,
+      name: seller.name,
+    });
+    if (!product) {
+      product = await SellerProduct.create({
+        sellerId: seller._id,
+        name: seller.name,
+        url: seller.url ?? '',
+        packQty: seller.packQty ?? 1,
+        packPrice: seller.packPrice ?? 0,
+        category: seller.category ?? '',
+        description: seller.description ?? '',
+        footprint: seller.footprint ?? '',
+      });
+      productsCreated += 1;
+    }
+
+    // `strict: false` is required: the legacy `sellerId` path is no longer part
+    // of the schema, so strict mode would silently drop the `$unset` and leave
+    // the stale field behind.
+    const lines = await BomLine.updateMany(
+      { sellerId: seller._id },
+      { $set: { productId: product._id }, $unset: { sellerId: '' } },
+      { strict: false },
+    );
+    linesUpdated += lines.modifiedCount ?? 0;
+
+    const overrides = await CommonPurchaseOverride.updateMany(
+      { sellerId: seller._id },
+      { $set: { productId: product._id }, $unset: { sellerId: '' } },
+      { strict: false },
+    );
+    overridesUpdated += overrides.modifiedCount ?? 0;
+  }
+
+  return {
+    sellers: sellers.length,
+    productsCreated,
+    linesUpdated,
+    overridesUpdated,
+  };
+}

@@ -6,7 +6,13 @@ import { parse } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 import request from 'supertest';
 
-import { connectTestDb, disconnectTestDb, findLine, prepareApp } from './helpers.js';
+import {
+  connectTestDb,
+  createSellerWithProduct,
+  disconnectTestDb,
+  findLine,
+  prepareApp,
+} from './helpers.js';
 
 let app;
 
@@ -59,14 +65,11 @@ async function importBoard() {
 
 async function prepareBoardWithData() {
   const boardId = await importBoard();
-  const seller = (
-    await request(app).post('/api/sellers').send({
-      name: 'ChipDip',
-      url: 'https://s/1',
-      packQty: 100,
-      packPrice: 50,
-    })
-  ).body;
+  const { product } = await createSellerWithProduct(
+    app,
+    { name: 'ChipDip', url: 'https://s/1' },
+    { packQty: 100, packPrice: 50 },
+  );
 
   const view = (await request(app).get(`/api/boards/${boardId}/lines`)).body;
   const capacitor = findLine(view, (line) => line.value === '100 nF');
@@ -74,7 +77,7 @@ async function prepareBoardWithData() {
 
   await request(app)
     .put(`/api/boards/${boardId}/lines/${capacitor.id}`)
-    .send({ sellerId: seller._id, shippingCost: 7, description: 'Note 1' });
+    .send({ productId: product.id, shippingCost: 7, description: 'Note 1' });
   await request(app)
     .put(`/api/boards/${boardId}/lines/${resistor.id}`)
     .send({ description: 'Note 2' });

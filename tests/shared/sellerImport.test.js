@@ -1,4 +1,4 @@
-// Unit tests for the seller-list parsing helpers (CSV encodings + XLSX cells).
+// Unit tests for the seller/product parsing helpers (CSV encodings + XLSX cells).
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -42,6 +42,38 @@ test('decodeCsv strips a UTF-8 BOM', () => {
   assert.equal(decodeCsv(bytes), 'URL');
 });
 
+test('legacy matrix: a row becomes a seller and a product with the same name/url', () => {
+  const matrix = [
+    ['Отчёт по товарам'],
+    ['Название', 'Категория', 'URL', 'Кол-во в упаковке', 'Цена за упаковку'],
+    ['Конденсаторы', 'Cat', 'https://a/1', '1000', '339'],
+  ];
+  const { rows, found, twoLevel } = mapSellerMatrix(matrix);
+  assert.equal(found, true);
+  assert.equal(twoLevel, false);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].sellerName, 'Конденсаторы');
+  assert.equal(rows[0].sellerUrl, 'https://a/1');
+  assert.equal(rows[0].productName, 'Конденсаторы');
+  assert.equal(rows[0].productUrl, 'https://a/1');
+  assert.equal(rows[0].category, 'Cat');
+  assert.equal(rows[0].packQty, 1000);
+  assert.equal(rows[0].packPrice, 339);
+});
+
+test('two-level matrix keeps seller and product columns apart', () => {
+  const matrix = [
+    ['Продавец', 'URL продавца', 'Товар', 'URL товара', 'Кол-во в упаковке'],
+    ['AliExpress', 'https://ali/store/1', 'Конденсаторы 0402', 'https://ali/item/1', '1000'],
+  ];
+  const { rows, twoLevel } = mapSellerMatrix(matrix);
+  assert.equal(twoLevel, true);
+  assert.equal(rows[0].sellerName, 'AliExpress');
+  assert.equal(rows[0].sellerUrl, 'https://ali/store/1');
+  assert.equal(rows[0].productName, 'Конденсаторы 0402');
+  assert.equal(rows[0].productUrl, 'https://ali/item/1');
+});
+
 test('parseCsvSellers reads a cp1251 semicolon CSV', () => {
   // The whole file is Windows-1251: "Название;URL" then "Тест;https://a/1;".
   const header = Buffer.from([
@@ -59,24 +91,9 @@ test('parseCsvSellers reads a cp1251 semicolon CSV', () => {
   assert.equal(parsed.delimiter, ';');
   assert.equal(parsed.found, true);
   assert.equal(parsed.rows.length, 1);
-  assert.equal(parsed.rows[0].name, 'Тест');
-  assert.equal(parsed.rows[0].url, 'https://a/1');
-});
-
-test('mapSellerMatrix detects the header row and maps columns', () => {
-  const matrix = [
-    ['Отчёт по продавцам'],
-    ['Название', 'Категория', 'URL', 'Кол-во в упаковке', 'Цена за упаковку'],
-    ['Конденсаторы', 'Cat', 'https://a/1', '1000', '339'],
-  ];
-  const { rows, found } = mapSellerMatrix(matrix);
-  assert.equal(found, true);
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].name, 'Конденсаторы');
-  assert.equal(rows[0].category, 'Cat');
-  assert.equal(rows[0].url, 'https://a/1');
-  assert.equal(rows[0].packQty, 1000);
-  assert.equal(rows[0].packPrice, 339);
+  assert.equal(parsed.rows[0].sellerName, 'Тест');
+  assert.equal(parsed.rows[0].productName, 'Тест');
+  assert.equal(parsed.rows[0].productUrl, 'https://a/1');
 });
 
 test('extractUrl prefers hyperlinks and tolerates "url (url)" text', () => {
@@ -99,23 +116,24 @@ test('extractUrl prefers hyperlinks and tolerates "url (url)" text', () => {
 test('parseXlsxSellers lists sheets and reads the requested one', async () => {
   const workbook = new ExcelJS.Workbook();
   const main = workbook.addWorksheet('Продавцы');
-  main.addRow(['Название', 'Категория', 'URL', 'Кол-во в упаковке']);
-  main.addRow(['Первый', 'Cat', 'https://a/1', 100]);
+  main.addRow(['Продавец', 'Товар', 'URL товара', 'Кол-во в упаковке']);
+  main.addRow(['Первый', 'Товар 1', 'https://a/1', 100]);
   const second = workbook.addWorksheet('Лист2');
-  second.addRow(['Название', 'URL']);
-  second.addRow(['Второй', 'https://a/2']);
+  second.addRow(['Продавец', 'Товар']);
+  second.addRow(['Второй', 'Товар 2']);
   const buffer = await workbook.xlsx.writeBuffer();
 
   const sheetNames = await readWorkbookSheetNames(buffer);
   assert.deepEqual(sheetNames, ['Продавцы', 'Лист2']);
 
   const fromMain = await parseXlsxSellers(buffer, 'Продавцы');
-  assert.equal(fromMain.rows[0].name, 'Первый');
-  assert.equal(fromMain.rows[0].url, 'https://a/1');
+  assert.equal(fromMain.rows[0].sellerName, 'Первый');
+  assert.equal(fromMain.rows[0].productName, 'Товар 1');
+  assert.equal(fromMain.rows[0].productUrl, 'https://a/1');
 
   const fromSecond = await parseXlsxSellers(buffer, 'Лист2');
-  assert.equal(fromSecond.rows[0].name, 'Второй');
-  assert.equal(fromSecond.rows[0].url, 'https://a/2');
+  assert.equal(fromSecond.rows[0].sellerName, 'Второй');
+  assert.equal(fromSecond.rows[0].productName, 'Товар 2');
 
   const unknown = await parseXlsxSellers(buffer, 'Нет такого');
   assert.equal(unknown.unknownSheet, true);
