@@ -1,10 +1,14 @@
 // A "categorisation" rule, editable through the UI.
 import mongoose from 'mongoose';
 
-export const REF_MODES = ['prefix', 'regex'];
-export const NAME_MODES = ['prefix', 'regex'];
-export const FOOTPRINT_MODES = ['prefix', 'regex', 'contains'];
-export const SORT_SPECS = ['value_desc', 'value_asc', 'name'];
+import {
+  FOOTPRINT_MODES,
+  NAME_MODES,
+  REF_MODES,
+  SORT_SPECS,
+} from '../../shared/constants.js';
+
+export { FOOTPRINT_MODES, NAME_MODES, REF_MODES, SORT_SPECS };
 
 const subcategorySchema = new mongoose.Schema(
   {

@@ -1,14 +1,10 @@
 // CRUD for sellers (shops). Products live in their own collection/service.
 import { conflict, notFound } from '../lib/httpError.js';
+import { throwIfErrors } from '../lib/validation.js';
 import { BomLine } from '../models/BomLine.js';
 import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
 import { Seller } from '../models/Seller.js';
 import { SellerProduct } from '../models/SellerProduct.js';
-
-function toNumber(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 function normalizeInput(payload = {}, { partial = false } = {}) {
   const data = {};
@@ -29,12 +25,7 @@ function assertInput(data) {
   if (data.name !== undefined && !data.name) {
     errors.push('name is required');
   }
-  if (errors.length > 0) {
-    const error = new Error(errors.join('; '));
-    error.status = 400;
-    error.details = errors;
-    throw error;
-  }
+  throwIfErrors(errors);
 }
 
 function rethrowDuplicate(error) {

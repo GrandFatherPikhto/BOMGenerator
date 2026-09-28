@@ -1,5 +1,11 @@
 // "Common purchases": virtual aggregation of every `common` line.
+import { COMMON_MODES, resolvePurchaseTotals } from '../../shared/index.js';
 import { badRequest } from '../lib/httpError.js';
+import {
+  isBlank,
+  parseNonNegativeInteger,
+  parseNonNegativeNumber,
+} from '../lib/validation.js';
 import { Board } from '../models/Board.js';
 import { BomLine } from '../models/BomLine.js';
 import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
@@ -9,7 +15,7 @@ import { listRuntimeCategories } from './categoryService.js';
 import { classifyLine, groupIntoBlocks, serializeBlocks } from './grouping.js';
 import { getSettings } from './settingsService.js';
 
-export const COMMON_MODES = ['merged', 'by_board'];
+export { COMMON_MODES };
 
 export async function getCommonPurchases(mode = 'merged') {
   if (!COMMON_MODES.includes(mode)) {
@@ -69,17 +75,13 @@ export async function getCommonPurchases(mode = 'merged') {
       : null;
     const seller = product ? sellerMap.get(String(product.sellerId)) ?? null : null;
     const shippingOverride = override.shippingCost ?? null;
-    // The override wins; otherwise the product's own delivery cost applies.
-    const shippingCost =
-      shippingOverride ?? (product ? product.shippingCost ?? 0 : null);
     const packsOverride = override.packsOverride ?? null;
-    const packs =
-      packsOverride ??
-      (product ? Math.ceil(group.totalQty / (product.packQty || 1)) : null);
-    const cost =
-      packs !== null && product
-        ? packs * product.packPrice + (shippingCost || 0)
-        : null;
+    const { packs, shippingCost, cost } = resolvePurchaseTotals({
+      qty: group.totalQty,
+      product,
+      packsOverride,
+      shippingOverride,
+    });
     const { parsed, display, category, subcategory, sort } = classifyLine(
       { reference: group.reference, value: group.value, footprint: group.footprint },
       categories,
@@ -149,26 +151,32 @@ export async function setCommonOverride(matchKey, payload = {}) {
   }
 
   if (payload.shippingCost !== undefined) {
-    if (payload.shippingCost === null || payload.shippingCost === '') {
+    if (isBlank(payload.shippingCost)) {
       doc.shippingCost = null;
     } else {
-      const shipping = Number(payload.shippingCost);
-      if (!Number.isFinite(shipping) || shipping < 0) {
-        throw badRequest('shippingCost must be a number >= 0');
+      const { value, error } = parseNonNegativeNumber(
+        payload.shippingCost,
+        'shippingCost',
+      );
+      if (error) {
+        throw badRequest(error);
       }
-      doc.shippingCost = shipping;
+      doc.shippingCost = value;
     }
   }
 
   if (payload.packsOverride !== undefined) {
-    if (payload.packsOverride === null || payload.packsOverride === '') {
+    if (isBlank(payload.packsOverride)) {
       doc.packsOverride = null;
     } else {
-      const packs = Number(payload.packsOverride);
-      if (!Number.isInteger(packs) || packs < 0) {
-        throw badRequest('packsOverride must be a non-negative integer');
+      const { value, error } = parseNonNegativeInteger(
+        payload.packsOverride,
+        'packsOverride',
+      );
+      if (error) {
+        throw badRequest(error);
       }
-      doc.packsOverride = packs;
+      doc.packsOverride = value;
     }
   }
 

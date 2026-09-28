@@ -1,6 +1,8 @@
 // Singleton settings document.
 import mongoose from 'mongoose';
 
+import { PAGE_WIDTHS, SORT_SPECS } from '../../shared/constants.js';
+
 const settingsSchema = new mongoose.Schema(
   {
     defaultCategoryName: { type: String, default: '\u041f\u0440\u043e\u0447\u0435\u0435' },

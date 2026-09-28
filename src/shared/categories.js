@@ -5,8 +5,9 @@
 // condition (see techdocs/plan-2026-09-27.md). It also contains the validation
 // used before saving a category through the API/UI.
 
+import { FOOTPRINT_MODES } from './constants.js';
+
 const REF_PREFIX_RE = /^[A-Za-z]+/;
-const FOOTPRINT_MODES = ['prefix', 'regex', 'contains'];
 
 /**
  * `"C2,C3,C4"` -> `"C"`, `"FB3,FB4"` -> `"FB"`, `"1X"` -> `""`.

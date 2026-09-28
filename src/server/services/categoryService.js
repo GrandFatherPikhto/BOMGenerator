@@ -1,9 +1,7 @@
 // CRUD for `ParseCategory` plus the default seed ported from python/config.yaml.
-import { validateCategory } from '../../shared/index.js';
+import { SORT_SPECS, validateCategory } from '../../shared/index.js';
 import { badRequest, notFound } from '../lib/httpError.js';
 import { ParseCategory } from '../models/ParseCategory.js';
-
-const SORT_SPECS = ['value_desc', 'value_asc', 'name'];
 
 // The categories of the original Python project, so a fresh database starts
 // useful. `order` matches the order used there (narrow categories first).

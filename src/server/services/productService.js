@@ -1,17 +1,13 @@
 // CRUD for seller products (offers). A product carries the packaging data used
 // for the purchase calculations; the seller is derived from it.
 import { notFound } from '../lib/httpError.js';
+import { throwIfErrors, toNumber } from '../lib/validation.js';
 import { BomLine } from '../models/BomLine.js';
 import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
 import { Seller } from '../models/Seller.js';
 import { SellerProduct } from '../models/SellerProduct.js';
 import { listRuntimeCategories } from './categoryService.js';
 import { getSettings } from './settingsService.js';
-
-function toNumber(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 function normalizeInput(payload = {}, { partial = false } = {}) {
   const data = {};
@@ -56,12 +52,7 @@ function assertInput(data) {
   if (data.shippingCost !== undefined && data.shippingCost < 0) {
     errors.push('shippingCost must be >= 0');
   }
-  if (errors.length > 0) {
-    const error = new Error(errors.join('; '));
-    error.status = 400;
-    error.details = errors;
-    throw error;
-  }
+  throwIfErrors(errors);
 }
 
 /** Flatten a product with its seller data (used by the client dropdowns). */

@@ -6,8 +6,15 @@ import {
   normalizeFootprint,
   parseQty,
   parseValue,
+  resolvePurchaseTotals,
 } from '../../shared/index.js';
 import { badRequest, conflict, notFound } from '../lib/httpError.js';
+import {
+  isBlank,
+  parseNonNegativeInteger,
+  parseNonNegativeNumber,
+  throwIfErrors,
+} from '../lib/validation.js';
 import { Board, SERVICE_BOARD_NAME } from '../models/Board.js';
 import { BomLine } from '../models/BomLine.js';
 import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
@@ -147,20 +154,15 @@ function computeRow(line, board, productMap, sellerMap, categories, settings, co
   const packsOverride = isCommon
     ? override?.packsOverride ?? null
     : line.packsOverride ?? null;
-  const packs =
-    packsOverride ??
-    (product ? Math.ceil(purchaseQty / (product.packQty || 1)) : null);
   const shippingOverride = isCommon
     ? override?.shippingCost ?? null
     : line.shippingCost ?? null;
-  // The hand-entered value wins; otherwise the delivery cost of the chosen
-  // product applies ("Доставка" lives on the product, not on the seller).
-  const shippingCost =
-    shippingOverride ?? (product ? product.shippingCost ?? 0 : null);
-  const cost =
-    packs !== null && product
-      ? packs * product.packPrice + (shippingCost || 0)
-      : null;
+  const { packs, shippingCost, cost } = resolvePurchaseTotals({
+    qty: purchaseQty,
+    product,
+    packsOverride,
+    shippingOverride,
+  });
 
   return {
     id: String(line._id),
@@ -372,23 +374,12 @@ export async function getAllBoardsView() {
     const shippingInfo = sharedValue(group.shippingOverrides);
     const descriptionInfo = sharedValue(group.descriptions);
 
-    // The hand-entered value wins; otherwise the product's delivery cost applies.
-    const shippingCost =
-      shippingInfo.value !== null
-        ? Number(shippingInfo.value)
-        : product
-          ? product.shippingCost ?? 0
-          : null;
-    const packs =
-      packsInfo.value !== null
-        ? Number(packsInfo.value)
-        : product
-          ? Math.ceil(group.totalQty / (product.packQty || 1))
-          : null;
-    const cost =
-      packs !== null && product
-        ? packs * product.packPrice + (shippingCost || 0)
-        : null;
+    const { packs, shippingCost, cost } = resolvePurchaseTotals({
+      qty: group.totalQty,
+      product,
+      packsOverride: packsInfo.value,
+      shippingOverride: shippingInfo.value,
+    });
 
     rows.push({
       matchKey: group.matchKey,
@@ -471,14 +462,17 @@ export async function updateLine(lineId, payload = {}) {
   }
 
   if (payload.shippingCost !== undefined) {
-    if (payload.shippingCost === null || payload.shippingCost === '') {
+    if (isBlank(payload.shippingCost)) {
       line.shippingCost = null;
     } else {
-      const shipping = Number(payload.shippingCost);
-      if (!Number.isFinite(shipping) || shipping < 0) {
-        errors.push('shippingCost must be a number >= 0');
+      const { value, error } = parseNonNegativeNumber(
+        payload.shippingCost,
+        'shippingCost',
+      );
+      if (error) {
+        errors.push(error);
       } else {
-        line.shippingCost = shipping;
+        line.shippingCost = value;
       }
     }
   }
@@ -493,14 +487,17 @@ export async function updateLine(lineId, payload = {}) {
   }
 
   if (payload.packsOverride !== undefined) {
-    if (payload.packsOverride === null || payload.packsOverride === '') {
+    if (isBlank(payload.packsOverride)) {
       line.packsOverride = null;
     } else {
-      const packs = Number(payload.packsOverride);
-      if (!Number.isInteger(packs) || packs < 0) {
-        errors.push('packsOverride must be a non-negative integer');
+      const { value, error } = parseNonNegativeInteger(
+        payload.packsOverride,
+        'packsOverride',
+      );
+      if (error) {
+        errors.push(error);
       } else {
-        line.packsOverride = packs;
+        line.packsOverride = value;
       }
     }
   }
@@ -551,9 +548,7 @@ export async function updateLine(lineId, payload = {}) {
     }
   }
 
-  if (errors.length > 0) {
-    throw badRequest(errors.join('; '), errors);
-  }
+  throwIfErrors(errors);
   await line.save();
   return line;
 }

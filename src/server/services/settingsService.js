@@ -1,9 +1,7 @@
 // Read/update the singleton Settings document.
+import { PAGE_WIDTHS, SORT_SPECS } from '../../shared/index.js';
 import { badRequest } from '../lib/httpError.js';
 import { Settings } from '../models/Settings.js';
-
-const SORT_SPECS = ['value_desc', 'value_asc', 'name'];
-const PAGE_WIDTHS = ['normal', 'wide', 'full'];
 
 export async function getSettings() {
   return Settings.getSingleton();
