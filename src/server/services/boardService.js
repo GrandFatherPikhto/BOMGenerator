@@ -609,13 +609,97 @@ export async function updateLine(lineId, payload = {}) {
  * aggregated row stands for every board line of the same component+source.
  */
 export async function updateLinesBulk(lineIds, changes = {}) {
-  const ids = Array.isArray(lineIds) ? lineIds.filter(Boolean) : [];
+  const ids = Array.isArray(lineIds)
+    ? [...new Set(lineIds.filter(Boolean).map(String))]
+    : [];
   if (ids.length === 0) {
     throw badRequest('lineIds is required');
   }
-  for (const lineId of ids) {
-    await updateLine(lineId, changes);
+
+  const touchesIdentity =
+    changes.value !== undefined ||
+    changes.footprint !== undefined ||
+    changes.qty !== undefined ||
+    changes.reference !== undefined;
+
+  // Identity edits recompute the match key per line (and are rejected for the
+  // imported rows anyway), so keep the sequential path for them.
+  if (touchesIdentity) {
+    for (const lineId of ids) {
+      await updateLine(lineId, changes);
+    }
+    return ids.length;
   }
+
+  // Validate once, then apply the same `$set` to every line in one round trip.
+  const set = {};
+  const errors = [];
+
+  if (changes.productId !== undefined) {
+    if (isBlank(changes.productId)) {
+      set.productId = null;
+    } else {
+      const product = await SellerProduct.findById(changes.productId);
+      if (!product) {
+        errors.push('productId does not exist');
+      } else {
+        set.productId = product._id;
+      }
+    }
+  }
+  if (changes.common !== undefined) {
+    set.common = Boolean(changes.common);
+  }
+  if (changes.shippingCost !== undefined) {
+    if (isBlank(changes.shippingCost)) {
+      set.shippingCost = null;
+    } else {
+      const { value, error } = parseNonNegativeNumber(
+        changes.shippingCost,
+        'shippingCost',
+      );
+      if (error) {
+        errors.push(error);
+      } else {
+        set.shippingCost = value;
+      }
+    }
+  }
+  if (changes.description !== undefined) {
+    const description = String(changes.description ?? '').trim();
+    if (description.length > 500) {
+      errors.push('description must be at most 500 characters');
+    } else {
+      set.description = description;
+    }
+  }
+  if (changes.packsOverride !== undefined) {
+    if (isBlank(changes.packsOverride)) {
+      set.packsOverride = null;
+    } else {
+      const { value, error } = parseNonNegativeInteger(
+        changes.packsOverride,
+        'packsOverride',
+      );
+      if (error) {
+        errors.push(error);
+      } else {
+        set.packsOverride = value;
+      }
+    }
+  }
+
+  throwIfErrors(errors);
+
+  if (Object.keys(set).length === 0) {
+    return 0;
+  }
+
+  const found = await BomLine.countDocuments({ _id: { $in: ids } });
+  if (found !== ids.length) {
+    throw notFound('Line not found');
+  }
+  await BomLine.updateMany({ _id: { $in: ids } }, { $set: set });
   return ids.length;
 }
 

@@ -7,6 +7,7 @@ import request from 'supertest';
 import {
   connectTestDb,
   disconnectTestDb,
+  findLine,
   prepareApp,
   serviceBoardId,
 } from './helpers.js';
@@ -128,4 +129,33 @@ test('an oversized upload is rejected with a friendly message', async () => {
     .attach('file', big, 'Big.csv');
   assert.equal(response.status, 400);
   assert.match(response.body.error, /too large/);
+});
+
+test('bulk update can edit the identity of manual "Докупить" lines', async () => {
+  const boards = (await request(app).get('/api/boards')).body;
+  const serviceId = serviceBoardId(boards);
+  const created = await request(app)
+    .post(`/api/boards/${serviceId}/lines`)
+    .send({ value: '10K', footprint: 'R_0402', qty: 1 });
+  const id = created.body.id;
+
+  const response = await request(app)
+    .put('/api/boards/lines')
+    .send({ lineIds: [id], changes: { value: '22K' } });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.updated, 1);
+
+  const view = (await request(app).get(`/api/boards/${serviceId}/lines`)).body;
+  assert.equal(findLine(view, (item) => item.id === id).value, '22K');
+});
+
+test('bulk update reports a missing line', async () => {
+  const response = await request(app)
+    .put('/api/boards/lines')
+    .send({
+      lineIds: ['64b000000000000000000000'],
+      changes: { shippingCost: 1 },
+    });
+  assert.equal(response.status, 404);
+  assert.match(response.body.error, /Line not found/);
 });
