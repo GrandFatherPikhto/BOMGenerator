@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 
+import { requireAuth } from './lib/session.js';
+import authRouter from './routes/auth.js';
 import boardsRouter from './routes/boards.js';
 import categoriesRouter from './routes/categories.js';
 import commonPurchasesRouter from './routes/commonPurchases.js';
@@ -34,23 +36,52 @@ function errorHandler(error, req, res, next) {
   res.status(status).json({ error: message, details: error.details });
 }
 
+/** Minimal security headers (kept dependency-free on purpose). */
+function securityHeaders(req, res, next) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  next();
+}
+
+/**
+ * CORS is needed only when the client is served from another origin. By default
+ * the app is same-origin (Vite proxies /api in development, Express serves the
+ * build in production), so cross-origin access has to be opted into explicitly
+ * with `CORS_ORIGIN`.
+ */
+function corsMiddleware() {
+  const origins = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return origins.length > 0 ? cors({ origin: origins, credentials: true }) : null;
+}
+
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
-  app.use(cors());
+  app.use(securityHeaders);
+  const corsHandler = corsMiddleware();
+  if (corsHandler) {
+    app.use(corsHandler);
+  }
   app.use(express.json({ limit: '5mb' }));
 
   app.get('/api/health', (req, res) => {
     res.json({ ok: true });
   });
 
-  app.use('/api/boards', boardsRouter);
-  app.use('/api/sellers', sellersRouter);
-  app.use('/api/products', productsRouter);
-  app.use('/api/categories', categoriesRouter);
-  app.use('/api/settings', settingsRouter);
-  app.use('/api/common-purchases', commonPurchasesRouter);
-  app.use('/api/ui-state', uiStateRouter);
+  // Open: sign in/out. Everything below it requires a session when auth is on.
+  app.use('/api/auth', authRouter);
+
+  app.use('/api/boards', requireAuth, boardsRouter);
+  app.use('/api/sellers', requireAuth, sellersRouter);
+  app.use('/api/products', requireAuth, productsRouter);
+  app.use('/api/categories', requireAuth, categoriesRouter);
+  app.use('/api/settings', requireAuth, settingsRouter);
+  app.use('/api/common-purchases', requireAuth, commonPurchasesRouter);
+  app.use('/api/ui-state', requireAuth, uiStateRouter);
 
   // Serve the built client in production.
   if (process.env.NODE_ENV === 'production') {

@@ -3,6 +3,7 @@ import 'dotenv/config';
 
 import { createApp } from './app.js';
 import { connectDatabase } from './db.js';
+import { isAuthEnabled } from './lib/authConfig.js';
 import { ensureServiceBoard } from './services/boardService.js';
 import { seedDefaults } from './services/categoryService.js';
 import { migrateSellersToProducts } from './services/migrationService.js';
@@ -30,6 +31,21 @@ async function main() {
   if (migration.productsCreated || migration.linesUpdated || migration.overridesUpdated) {
     console.log('Sellers migrated to products:', migration);
   }
+
+  // Authentication needs a signing secret; fail fast instead of 401-ing everyone.
+  if (isAuthEnabled() && !process.env.SESSION_SECRET) {
+    console.error('\nAuthentication is enabled (auth.json has users) but SESSION_SECRET is not set.');
+    console.error('Generate one with:');
+    console.error(
+      "  node -e \"console.log(require('node:crypto').randomBytes(32).toString('base64url'))\"",
+    );
+    process.exit(1);
+  }
+  console.log(
+    isAuthEnabled()
+      ? 'Authentication: enabled (users from auth.json)'
+      : 'Authentication: disabled (no users configured)',
+  );
 
   const app = createApp();
   app.listen(port, () => {

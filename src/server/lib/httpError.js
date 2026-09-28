@@ -14,6 +14,14 @@ export function badRequest(message, details) {
   return new HttpError(400, message, details);
 }
 
+export function unauthorized(message = 'Authentication required') {
+  return new HttpError(401, message);
+}
+
+export function tooManyRequests(message = 'Too many attempts, try again later') {
+  return new HttpError(429, message);
+}
+
 export function notFound(message = 'Not found') {
   return new HttpError(404, message);
 }
