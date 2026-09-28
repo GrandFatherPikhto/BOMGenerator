@@ -19,7 +19,11 @@ import { PAGE_SIZE_DEFAULT } from '../components/LinesTable.jsx';
 import PurchaseBoardView from '../components/PurchaseBoardView.jsx';
 import { api } from '../lib/apiClient.js';
 
-/** Read the persisted filters back from the URL. */
+/**
+ * Read the persisted filters back from the URL. The seller is deliberately NOT
+ * persisted: it belongs to one table, so keeping it in the URL made it "leak"
+ * onto other boards/tabs where it was never chosen.
+ */
 function readFilters(params) {
   return {
     value: params.get('value') ?? '',
@@ -30,7 +34,6 @@ function readFilters(params) {
     footprintCaseSensitive: params.get('fpCase') === '1',
     qtyOp: params.get('qtyOp') ?? '',
     qty: params.get('qty') ?? '',
-    seller: params.get('seller') ?? '',
   };
 }
 
@@ -45,7 +48,6 @@ function filtersToParams(filters) {
     fpCase: filters.footprintCaseSensitive ? '1' : '',
     qtyOp: filters.qtyOp,
     qty: filters.qty,
-    seller: filters.seller,
   };
 }
 
@@ -67,8 +69,13 @@ export default function PurchasesPage() {
   const [view, setView] = useState(null);
   const [allView, setAllView] = useState(null);
   const [count, setCount] = useState(1);
+  // The seller filter is local to the table and never persisted (see readFilters).
+  const [seller, setSeller] = useState('');
   const [error, setError] = useState(null);
   const [loaded, setLoaded] = useState(false);
+
+  // What the views actually filter by: the URL-backed filters plus the local seller.
+  const viewFilters = useMemo(() => ({ ...filters, seller }), [filters, seller]);
 
   /** Merge a patch into the URL, preserving every other parameter. */
   const updateParams = useCallback(
@@ -90,6 +97,13 @@ export default function PurchasesPage() {
     },
     [setSearchParams],
   );
+
+  // Drop a "seller" left in the URL by an older link: it is never persisted now.
+  useEffect(() => {
+    if (searchParams.has('seller')) {
+      updateParams({ seller: '' });
+    }
+  }, [searchParams, updateParams]);
 
   useEffect(() => {
     (async () => {
@@ -181,7 +195,11 @@ export default function PurchasesPage() {
   // not see a new callback on every render (which would trigger extra renders).
   const changeFilters = useCallback(
     (changes) => {
+      if ('seller' in changes) {
+        setSeller(changes.seller);
+      }
       const next = { ...filters, ...changes };
+      delete next.seller;
       updateParams({ ...filtersToParams(next), page: '' });
     },
     [filters, updateParams],
@@ -191,6 +209,7 @@ export default function PurchasesPage() {
   // may not even have that seller).
   const changeTab = useCallback(
     (next) => {
+      setSeller('');
       updateParams({ tab: next === 'all' ? 'all' : '', seller: '', page: '' });
     },
     [updateParams],
@@ -278,9 +297,10 @@ export default function PurchasesPage() {
               size="small"
               label="Плата"
               value={boardId}
-              onChange={(event) =>
-                updateParams({ board: event.target.value, seller: '', page: '' })
-              }
+              onChange={(event) => {
+                setSeller('');
+                updateParams({ board: event.target.value, seller: '', page: '' });
+              }}
               sx={{ minWidth: 260 }}
             >
               {boards.map((board) => (
@@ -336,7 +356,7 @@ export default function PurchasesPage() {
           <AllBoardsPurchasesView
             view={allView}
             products={products}
-            filters={filters}
+            filters={viewFilters}
             onFiltersChange={changeFilters}
             onPatchLines={patchLines}
             page={page}
@@ -357,7 +377,7 @@ export default function PurchasesPage() {
           totals={view.totals}
           products={products}
           onPatchLine={patchLine}
-          filters={filters}
+          filters={viewFilters}
           onFiltersChange={changeFilters}
           page={page}
           pageSize={pageSize}
