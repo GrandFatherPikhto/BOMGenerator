@@ -73,6 +73,28 @@ describe('apiClient', () => {
     });
   });
 
+  it('reads the persisted UI state', async () => {
+    global.fetch.mockResolvedValue(
+      jsonResponse({ version: 1, sections: { boards: { lastOpenBoardId: 'b1' } } }),
+    );
+    const result = await api.uiState.get();
+    expect(global.fetch).toHaveBeenCalledWith('/api/ui-state', {
+      method: 'GET',
+      headers: {},
+    });
+    expect(result.sections.boards.lastOpenBoardId).toBe('b1');
+  });
+
+  it('merges UI-state sections with a PATCH', async () => {
+    global.fetch.mockResolvedValue(jsonResponse({ version: 1, sections: {} }));
+    await api.uiState.merge({ purchases: { boardId: 'b1' } });
+    expect(global.fetch).toHaveBeenCalledWith('/api/ui-state', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sections: { purchases: { boardId: 'b1' } } }),
+    });
+  });
+
   it('sends multipart form data for the import endpoint', async () => {
     global.fetch.mockResolvedValue(jsonResponse({ board: { id: '1' } }));
     const file = new File(['Reference,Qty\nR1,1'], 'board.csv', {

@@ -109,6 +109,11 @@ export const api = {
     get: () => request('/settings'),
     update: (payload) => request('/settings', { method: 'PUT', body: payload }),
   },
+  uiState: {
+    get: () => request('/ui-state'),
+    merge: (sections) =>
+      request('/ui-state', { method: 'PATCH', body: { sections } }),
+  },
   commonPurchases: {
     list: (mode = 'merged') => request(`/common-purchases?mode=${mode}`),
     setOverride: (payload) =>
