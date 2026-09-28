@@ -90,7 +90,7 @@ test('a product without a delivery cost falls back to zero', () => {
     product: { packQty: 10, packPrice: 3 },
   });
   assert.equal(result.shippingCost, 0);
-  assert.equal(result.cost, 33); // 10 * 3 + 0
+  assert.equal(result.cost, 30); // 10 * 3 + 0
 });
 
 test('a packQty of zero is treated as one', () => {
