@@ -6,11 +6,9 @@ purchasing workbook: boards, sellers, editable categorisation rules and
 React, Node).
 
 This is an independent project. It borrows only the **nominal-value parsing and
-categorisation algorithms** from the original Python tool
-([`python/bom_merge.py`](python/bom_merge.py)); the rest is new. See
-[`techdocs/design.md`](techdocs/design.md) and
-[`techdocs/plan-2026-09-27.md`](techdocs/plan-2026-09-27.md) for the original
-design notes and the specification.
+categorisation algorithms** from the original Python tool; the rest is new. The
+original design notes and the Python reference live in `techdocs/` and `python/`,
+kept as git-ignored local working documents.
 
 - [Features](#features)
 - [Requirements](#requirements)
@@ -119,9 +117,15 @@ the Python project) and creates the "Докупить" service board.
 | `npm run seed` | Insert the default categories/settings if empty |
 | `npm run seed -- --reset` | Wipe and re-insert the default categories |
 | `npm run migrate` | One-off idempotent "seller → seller + product" migration (also runs at startup) |
-| `npm test` | All tests (`node:test`), API files run serially |
-| `npm run test:unit` | Shared-module unit tests only |
+| `npm test` | All tests: `node:test` (shared + server + API) then Vitest (client) |
+| `npm run test:node` | `node:test` suites only (shared, server helpers, API) |
+| `npm run test:unit` | Unit tests only (shared + server helpers) |
 | `npm run test:api` | API integration tests only |
+| `npm run test:client` | Client tests (Vitest + jsdom) |
+| `npm run test:coverage` | `node:test` coverage for shared/server/API |
+| `npm run test:coverage:client` | Vitest coverage for `src/client` |
+| `npm run lint` | ESLint over the whole repository |
+| `npm run format` | Prettier write (`format:check` to verify) |
 
 ## Screens
 
@@ -176,13 +180,16 @@ See [`docs/architecture.md`](docs/architecture.md) for diagrams.
 npm test
 ```
 
-- Unit tests for the shared module (`tests/shared`) cover the parser and
-  categoriser, including the acceptance vectors from the specification
-  (`"4K7" == "4.7K"` by match key, `"2.2 uF" != "2.2 uF 25V"`, unparsed part
-  numbers, regex modes, invalid regex rejection).
+- Unit tests for the shared module (`tests/shared`) and the server helpers
+  (`tests/server`) cover the parser, the categoriser (including the acceptance
+  vectors `"4K7" == "4.7K"` and `"2.2 uF" != "2.2 uF 25V"`), the seller/product
+  import parsers and the purchase calculations.
 - API integration tests (`tests/api`) run against a real local MongoDB and
-  cover import/re-import, hand-filled value preservation, common purchases and
-  the "Докупить" board.
+  cover import/re-import, hand-filled value preservation, common purchases, the
+  "Докупить" board, exports and the validation edge cases.
+- Client tests (`tests/client`, Vitest + jsdom) cover number formatting, the
+  thin API client and the pagination hook.
+- `npm run lint` runs ESLint; CI runs it together with the whole test suite.
 
 ## Project structure
 
@@ -191,11 +198,13 @@ npm test
 | [`src/shared/`](src/shared) | Framework- and dependency-free domain code: value parser, categoriser, sorting (JS port of the Python algorithms) |
 | [`src/server/`](src/server) | Express API, Mongoose models, services |
 | [`src/client/`](src/client) | React (Vite) user interface |
-| [`tests/`](tests) | Node test-runner suites (shared + API) |
-| [`scripts/`](scripts) | `seed.js`, `acceptance.js` |
+| [`tests/shared/`](tests/shared) | `node:test` unit tests for the domain module |
+| [`tests/server/`](tests/server) | `node:test` unit tests for server-side helpers |
+| [`tests/api/`](tests/api) | `node:test` API integration tests (need MongoDB) |
+| [`tests/client/`](tests/client) | Vitest + jsdom tests for the React layer |
+| [`scripts/`](scripts) | `seed.js`, `acceptance.js`, `inspect.local.mjs` |
 | [`docs/`](docs) | Architecture, data model, API reference |
-| [`techdocs/`](techdocs) | Working notes/examples (planned to be git-ignored later) |
-| [`python/`](python) | Original Python project (reference only) |
+| `techdocs/`, `python/` | Git-ignored local working notes and the original Python project |
 
 ## Design decisions and `TODO(confirm)`
 
