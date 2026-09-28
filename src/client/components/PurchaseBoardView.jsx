@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   MenuItem,
@@ -9,6 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import { compileLineFilter, filterBlocks } from '../../shared/index.js';
 import { formatMoney } from '../format.js';
 import {
   CommonCell,
@@ -19,6 +20,7 @@ import {
   ProductLabel,
   ShippingCell,
 } from './LinesTable.jsx';
+import LineFiltersBar, { EMPTY_LINE_FILTERS } from './LineFiltersBar.jsx';
 import ReferenceDesignators from './ReferenceDesignators.jsx';
 
 const COMMON_ROW_SX = { backgroundColor: '#f5f5f5' };
@@ -65,6 +67,23 @@ export default function PurchaseBoardView({
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
+
+  const [filters, setFilters] = useState(EMPTY_LINE_FILTERS);
+
+  // Another board starts with clean filters.
+  useEffect(() => {
+    setFilters(EMPTY_LINE_FILTERS);
+  }, [board.id]);
+
+  const rows = useMemo(
+    () => blocks.filter((block) => block.kind === 'line').map((block) => block.line),
+    [blocks],
+  );
+  const filter = useMemo(() => compileLineFilter(filters), [filters]);
+  const visibleBlocks = useMemo(
+    () => filterBlocks(blocks, filter.match),
+    [blocks, filter],
+  );
 
   const patch = (row) => (changes) => onPatchLine(row.id, changes);
 
@@ -160,6 +179,14 @@ export default function PurchaseBoardView({
 
   return (
     <>
+      <LineFiltersBar
+        rows={rows}
+        filters={filters}
+        onChange={(changes) =>
+          setFilters((previous) => ({ ...previous, ...changes }))
+        }
+      />
+
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
         <TextField
           select
@@ -182,9 +209,9 @@ export default function PurchaseBoardView({
       </Stack>
 
       <LinesTable
-        blocks={blocks}
+        blocks={visibleBlocks}
         columns={columns}
-        resetKey={board.id}
+        resetKey={`${board.id}:${JSON.stringify(filters)}`}
         rowSx={(row) => (row.common ? COMMON_ROW_SX : undefined)}
         renderDetail={(row) => <ReferenceDesignators reference={row.reference} />}
       />

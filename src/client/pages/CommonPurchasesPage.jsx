@@ -20,7 +20,9 @@ import {
   ProductCell,
   ShippingCell,
 } from '../components/LinesTable.jsx';
+import LineFiltersBar, { EMPTY_LINE_FILTERS } from '../components/LineFiltersBar.jsx';
 import { formatMoney } from '../format.js';
+import { compileLineFilter, filterBlocks } from '../../shared/index.js';
 
 /**
  * "Общие закупки": the shared need of every board position marked "Общие",
@@ -33,7 +35,14 @@ export default function CommonPurchasesPage() {
   const [view, setView] = useState(null);
   const [products, setProducts] = useState([]);
   const [sellerFilter, setSellerFilter] = useState('');
+  const [filters, setFilters] = useState(EMPTY_LINE_FILTERS);
   const [error, setError] = useState(null);
+
+  // Switching between the merged list and the by-board breakdown resets the
+  // filters: the rows behind them change completely.
+  useEffect(() => {
+    setFilters(EMPTY_LINE_FILTERS);
+  }, [mode]);
 
   const load = useCallback(async () => {
     try {
@@ -60,6 +69,19 @@ export default function CommonPurchasesPage() {
       setError(patchError.message);
     }
   }
+
+  const rows = useMemo(
+    () =>
+      (view?.blocks ?? [])
+        .filter((block) => block.kind === 'line')
+        .map((block) => block.line),
+    [view],
+  );
+  const filter = useMemo(() => compileLineFilter(filters), [filters]);
+  const visibleBlocks = useMemo(
+    () => filterBlocks(view?.blocks ?? [], filter.match),
+    [view, filter],
+  );
 
   const productMap = useMemo(
     () => new Map(products.map((product) => [product.id, product])),
@@ -180,6 +202,14 @@ export default function CommonPurchasesPage() {
         </Box>
       ) : (
         <>
+          <LineFiltersBar
+            rows={rows}
+            filters={filters}
+            onChange={(changes) =>
+              setFilters((previous) => ({ ...previous, ...changes }))
+            }
+          />
+
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
             <TextField
               select
@@ -201,7 +231,11 @@ export default function CommonPurchasesPage() {
             </Typography>
           </Stack>
 
-          <LinesTable blocks={view.blocks} columns={columns} resetKey={mode} />
+          <LinesTable
+            blocks={visibleBlocks}
+            columns={columns}
+            resetKey={`${mode}:${JSON.stringify(filters)}`}
+          />
           <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>
             <Stack direction="row" justifyContent="flex-end" spacing={4}>
               <Typography>

@@ -27,3 +27,10 @@ export {
   compileProductFilter,
   scopeProducts,
 } from './textFilter.js';
+
+export {
+  QTY_OPERATORS,
+  compileTextMatch,
+  compileLineFilter,
+  filterBlocks,
+} from './lineFilter.js';
