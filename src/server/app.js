@@ -11,6 +11,7 @@ import commonPurchasesRouter from './routes/commonPurchases.js';
 import productsRouter from './routes/products.js';
 import sellersRouter from './routes/sellers.js';
 import settingsRouter from './routes/settings.js';
+import uiStateRouter from './routes/uiState.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,6 +50,7 @@ export function createApp() {
   app.use('/api/categories', categoriesRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/common-purchases', commonPurchasesRouter);
+  app.use('/api/ui-state', uiStateRouter);
 
   // Serve the built client in production.
   if (process.env.NODE_ENV === 'production') {
