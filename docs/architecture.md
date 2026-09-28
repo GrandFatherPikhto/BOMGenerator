@@ -128,6 +128,20 @@ a board selector in its header (the service "Докупить" board has its own
 is not listed there). Both read the same endpoint, `GET /api/boards/:id/lines`,
 so behaviour and calculations never diverge.
 
+### Persisted UI state
+
+The screens remember "what the user was working with" (selected board, page,
+filters, seller per board, mode) in a per-user `UiState` document served by
+`/api/ui-state`. The client loads it once
+([`UiStateContext`](../src/client/UiStateContext.jsx)), reads a slice through
+[`useUiState`](../src/client/hooks/useUiState.js) and writes changes back with a
+debounce; the server deep-merges a patch section by section, so parallel tabs
+editing different screens do not overwrite each other. In the purchase tables the
+URL stays the source of truth for the current view and the stored state is
+restored only when the page is opened without parameters (e.g. by clicking the
+tab). The document is keyed by a user id — an implicit default until
+authentication exists, at which point it becomes per-account.
+
 ## Atomicity
 
 Several operations touch more than one document:

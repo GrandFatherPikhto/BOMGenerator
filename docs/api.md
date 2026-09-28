@@ -161,6 +161,21 @@ Invalid regex example response (HTTP 400):
 (`normal` \| `wide` \| `full`), `subcategoryOtherLabel`, `excludeDnpByDefault`
 and `excludeFromBomByDefault`.
 
+## UI state
+
+The per-user "working context" (selected board, page, filters, seller per board,
+mode) that the screens remember between visits.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/ui-state` | `{ version, sections }` of the current user |
+| `PATCH` | `/ui-state` | Deep-merge `{ sections: { <name>: { … } } }`, return the whole state |
+
+Only the known sections (`boards`, `purchases`, `common`, `manual`, `sellers`,
+`categories`) and their known, type-checked keys are stored; anything else is
+dropped. The document is keyed by a user id (the implicit default user for now),
+so it becomes per-account once authentication is added.
+
 ## Common purchases
 
 | Method | Path | Description |
