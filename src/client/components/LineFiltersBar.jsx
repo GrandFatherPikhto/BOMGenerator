@@ -23,6 +23,7 @@ export const EMPTY_LINE_FILTERS = {
   footprintCaseSensitive: false,
   qtyOp: '',
   qty: '',
+  seller: '',
 };
 
 const QTY_OPTIONS = [
@@ -158,13 +159,43 @@ function QtyFilterField({ op, qty, onOpChange, onQtyChange }) {
   );
 }
 
+/** Seller condition: shows only the positions bought from the chosen seller. */
+function SellerFilterField({ value, onChange, sellerOptions }) {
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="flex-start">
+      <TextField
+        select
+        size="small"
+        label="Продавец"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        helperText=" "
+        sx={{ minWidth: 200 }}
+      >
+        <MenuItem value="">Все продавцы</MenuItem>
+        {sellerOptions.map((seller) => (
+          <MenuItem key={seller.id} value={seller.id}>
+            {seller.name}
+          </MenuItem>
+        ))}
+      </TextField>
+      {value ? (
+        <ClearButton
+          title="Очистить: Продавец"
+          onClick={() => onChange('')}
+        />
+      ) : null}
+    </Stack>
+  );
+}
+
 /**
  * Filter bar shared by the "Закупки" and "Общие закупки" tables. `rows` are the
  * line rows of the current table (used to fill the dropdowns), `filters` is the
- * state object (`EMPTY_LINE_FILTERS` shape) and `onChange` receives a partial
- * patch to merge into it.
+ * state object (`EMPTY_LINE_FILTERS` shape), `sellerOptions` lists the sellers
+ * used by the current table and `onChange` receives a partial patch to merge.
  */
-export default function LineFiltersBar({ rows, filters, onChange }) {
+export default function LineFiltersBar({ rows, filters, onChange, sellerOptions = [] }) {
   const valueOptions = useMemo(() => distinctValues(rows.map((row) => row.value)), [rows]);
   const footprintOptions = useMemo(
     () => distinctValues(rows.map((row) => row.footprint)),
@@ -207,6 +238,11 @@ export default function LineFiltersBar({ rows, filters, onChange }) {
         qty={filters.qty}
         onOpChange={(qtyOp) => patch({ qtyOp })}
         onQtyChange={(qty) => patch({ qty })}
+      />
+      <SellerFilterField
+        value={filters.seller}
+        onChange={(seller) => patch({ seller })}
+        sellerOptions={sellerOptions}
       />
     </Stack>
   );

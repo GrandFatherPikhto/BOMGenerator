@@ -84,7 +84,8 @@ function compileQtyMatch(qtyOp, qty) {
  * `{ active, errors: { value, footprint, qty }, match(row) }`.
  *
  * `value` and `footprint` match the eponymous row fields; `qtyOp`/`qty` compare
- * the row's `totalQty` (the "Итого" / "Нужно всего" column).
+ * the row's `totalQty` (the "Итого" / "Нужно всего" column); `seller` keeps only
+ * the rows bought from that seller (which positions it supplies).
  */
 export function compileLineFilter({
   value = '',
@@ -95,6 +96,7 @@ export function compileLineFilter({
   footprintCaseSensitive = false,
   qtyOp = '',
   qty = '',
+  seller = '',
 } = {}) {
   const valueFilter = compileTextMatch(value, {
     regex: valueRegex,
@@ -105,9 +107,14 @@ export function compileLineFilter({
     caseSensitive: footprintCaseSensitive,
   });
   const qtyFilter = compileQtyMatch(qtyOp, qty);
+  const sellerId = String(seller ?? '').trim();
 
   return {
-    active: valueFilter.active || footprintFilter.active || qtyFilter.active,
+    active:
+      valueFilter.active ||
+      footprintFilter.active ||
+      qtyFilter.active ||
+      Boolean(sellerId),
     errors: {
       value: valueFilter.error,
       footprint: footprintFilter.error,
@@ -121,6 +128,9 @@ export function compileLineFilter({
         return false;
       }
       if (qtyFilter.match && !qtyFilter.match(row)) {
+        return false;
+      }
+      if (sellerId && String(row?.sellerId ?? '') !== sellerId) {
         return false;
       }
       return true;

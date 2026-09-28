@@ -41,6 +41,11 @@ export const api = {
       request(`/boards/${id}/lines`, { method: 'POST', body: payload }),
     updateLine: (id, lineId, payload) =>
       request(`/boards/${id}/lines/${lineId}`, { method: 'PUT', body: payload }),
+    updateLines: (lineIds, payload) =>
+      request('/boards/lines', {
+        method: 'PUT',
+        body: { lineIds, changes: payload },
+      }),
     deleteLine: (id, lineId) =>
       request(`/boards/${id}/lines/${lineId}`, { method: 'DELETE' }),
     import: (file, name, options = {}) => {

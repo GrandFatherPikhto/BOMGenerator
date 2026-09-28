@@ -4,10 +4,8 @@ import {
   Alert,
   Box,
   CircularProgress,
-  MenuItem,
   Paper,
   Stack,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -28,13 +26,12 @@ import { compileLineFilter, filterBlocks } from '../../shared/index.js';
  * "Общие закупки": the shared need of every board position marked "Общие",
  * aggregated by match key. Here (and only here) the product, packages and
  * shipping of those rows are chosen; the seller follows from the product, and
- * the "Продавец" control narrows the product list.
+ * the "Продавец" filter keeps only its rows (and narrows the product list).
  */
 export default function CommonPurchasesPage() {
   const [mode, setMode] = useState('merged');
   const [view, setView] = useState(null);
   const [products, setProducts] = useState([]);
-  const [sellerFilter, setSellerFilter] = useState('');
   const [filters, setFilters] = useState(EMPTY_LINE_FILTERS);
   const [error, setError] = useState(null);
 
@@ -90,18 +87,22 @@ export default function CommonPurchasesPage() {
   const productOf = (row) =>
     row.productId ? productMap.get(row.productId) ?? null : null;
 
-  // The seller filter lists only sellers that actually have products.
+  // Only the sellers actually used by the common purchases are offered.
   const sellerOptions = useMemo(() => {
     const map = new Map();
-    for (const product of products) {
-      if (product.sellerId && !map.has(product.sellerId)) {
-        map.set(product.sellerId, product.sellerName);
+    for (const row of rows) {
+      if (!row.sellerId || map.has(row.sellerId)) {
+        continue;
+      }
+      const name = productMap.get(row.productId)?.sellerName;
+      if (name) {
+        map.set(row.sellerId, name);
       }
     }
     return [...map.entries()]
       .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [products]);
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [rows, productMap]);
 
   const columns = [
     { id: 'value', label: 'Наименование' },
@@ -133,7 +134,7 @@ export default function CommonPurchasesPage() {
         <ProductCell
           row={row}
           products={products}
-          sellerFilter={sellerFilter}
+          sellerFilter={filters.seller}
           onChange={(c) => patch(row, c)}
         />
       ),
@@ -208,28 +209,8 @@ export default function CommonPurchasesPage() {
             onChange={(changes) =>
               setFilters((previous) => ({ ...previous, ...changes }))
             }
+            sellerOptions={sellerOptions}
           />
-
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
-            <TextField
-              select
-              size="small"
-              label="Продавец (фильтр)"
-              value={sellerFilter}
-              onChange={(event) => setSellerFilter(event.target.value)}
-              sx={{ minWidth: 240 }}
-            >
-              <MenuItem value="">Все продавцы</MenuItem>
-              {sellerOptions.map((seller) => (
-                <MenuItem key={seller.id} value={seller.id}>
-                  {seller.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Typography variant="caption" color="text.secondary">
-              Фильтр сужает список товаров в колонке «Товар».
-            </Typography>
-          </Stack>
 
           <LinesTable
             blocks={visibleBlocks}

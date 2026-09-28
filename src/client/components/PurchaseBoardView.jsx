@@ -1,13 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-import {
-  MenuItem,
-  Paper,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 
 import { compileLineFilter, filterBlocks } from '../../shared/index.js';
 import { formatMoney } from '../format.js';
@@ -20,7 +13,7 @@ import {
   ProductLabel,
   ShippingCell,
 } from './LinesTable.jsx';
-import LineFiltersBar, { EMPTY_LINE_FILTERS } from './LineFiltersBar.jsx';
+import LineFiltersBar from './LineFiltersBar.jsx';
 import ReferenceDesignators from './ReferenceDesignators.jsx';
 
 const COMMON_ROW_SX = { backgroundColor: '#f5f5f5' };
@@ -30,9 +23,12 @@ const COMMON_ROW_SX = { backgroundColor: '#f5f5f5' };
  * the product, the "Общие" flag, packages, shipping and the note, plus the
  * "Итого" totals.
  *
- * The seller is not edited per row: it is derived from the chosen product (a
- * seller has many products). The "Продавец" control above the table is a filter
- * that narrows the product dropdown.
+ * The seller is not edited per row: it is derived from the chosen product. The
+ * "Продавец" control in the filter bar keeps only its rows (and narrows the
+ * product dropdown).
+ *
+ * Filters and pagination are owned by the caller (`PurchasesPage`) so they can
+ * be persisted in the URL.
  *
  * A row marked "Общие" is purchased on the "Common purchases" sheet: its
  * product, packages, shipping and cost are shown read-only here (the need is
@@ -45,9 +41,13 @@ export default function PurchaseBoardView({
   totals,
   products,
   onPatchLine,
+  filters,
+  onFiltersChange,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
 }) {
-  const [sellerFilter, setSellerFilter] = useState('');
-
   const productMap = useMemo(
     () => new Map(products.map((product) => [product.id, product])),
     [products],
@@ -55,30 +55,28 @@ export default function PurchaseBoardView({
   const productOf = (row) =>
     row.productId ? productMap.get(row.productId) ?? null : null;
 
-  // The seller filter lists only sellers that actually have products.
-  const sellerOptions = useMemo(() => {
-    const map = new Map();
-    for (const product of products) {
-      if (product.sellerId && !map.has(product.sellerId)) {
-        map.set(product.sellerId, product.sellerName);
-      }
-    }
-    return [...map.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [products]);
-
-  const [filters, setFilters] = useState(EMPTY_LINE_FILTERS);
-
-  // Another board starts with clean filters.
-  useEffect(() => {
-    setFilters(EMPTY_LINE_FILTERS);
-  }, [board.id]);
-
   const rows = useMemo(
     () => blocks.filter((block) => block.kind === 'line').map((block) => block.line),
     [blocks],
   );
+
+  // Only the sellers actually used by this board are offered in the filter.
+  const sellerOptions = useMemo(() => {
+    const map = new Map();
+    for (const row of rows) {
+      if (!row.sellerId || map.has(row.sellerId)) {
+        continue;
+      }
+      const name = productMap.get(row.productId)?.sellerName;
+      if (name) {
+        map.set(row.sellerId, name);
+      }
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [rows, productMap]);
+
   const filter = useMemo(() => compileLineFilter(filters), [filters]);
   const visibleBlocks = useMemo(
     () => filterBlocks(blocks, filter.match),
@@ -123,7 +121,7 @@ export default function PurchaseBoardView({
           <ProductCell
             row={row}
             products={products}
-            sellerFilter={sellerFilter}
+            sellerFilter={filters.seller}
             onChange={patch(row)}
           />
         ),
@@ -182,38 +180,20 @@ export default function PurchaseBoardView({
       <LineFiltersBar
         rows={rows}
         filters={filters}
-        onChange={(changes) =>
-          setFilters((previous) => ({ ...previous, ...changes }))
-        }
+        onChange={onFiltersChange}
+        sellerOptions={sellerOptions}
       />
-
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
-        <TextField
-          select
-          size="small"
-          label="Продавец (фильтр)"
-          value={sellerFilter}
-          onChange={(event) => setSellerFilter(event.target.value)}
-          sx={{ minWidth: 240 }}
-        >
-          <MenuItem value="">Все продавцы</MenuItem>
-          {sellerOptions.map((seller) => (
-            <MenuItem key={seller.id} value={seller.id}>
-              {seller.name}
-            </MenuItem>
-          ))}
-        </TextField>
-        <Typography variant="caption" color="text.secondary">
-          Фильтр сужает список товаров в колонке «Товар».
-        </Typography>
-      </Stack>
 
       <LinesTable
         blocks={visibleBlocks}
         columns={columns}
-        resetKey={`${board.id}:${JSON.stringify(filters)}`}
+        resetKey={board.id}
         rowSx={(row) => (row.common ? COMMON_ROW_SX : undefined)}
         renderDetail={(row) => <ReferenceDesignators reference={row.reference} />}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
       />
       <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>
         <Stack direction="row" justifyContent="flex-end" spacing={4}>

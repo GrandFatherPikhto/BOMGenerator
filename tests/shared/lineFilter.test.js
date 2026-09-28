@@ -144,6 +144,22 @@ test('filterBlocks keeps a category that has no subcategories', () => {
   );
 });
 
+test('the seller condition keeps only the rows of that seller', () => {
+  const rows = [
+    { sellerId: 's1', totalQty: 1 },
+    { sellerId: 's2', totalQty: 1 },
+    { sellerId: null, totalQty: 1 },
+  ];
+
+  const filter = compileLineFilter({ seller: 's1' });
+  assert.equal(filter.active, true);
+  assert.deepEqual(rows.filter(filter.match), [rows[0]]);
+
+  // No seller picked -> no condition.
+  assert.equal(compileLineFilter({ seller: '' }).active, false);
+  assert.equal(rows.every(compileLineFilter({}).match), true);
+});
+
 test('filterBlocks without a matcher returns the input unchanged', () => {
   const blocks = [{ kind: 'line', line: { value: 'X' } }];
   assert.equal(filterBlocks(blocks, null), blocks);

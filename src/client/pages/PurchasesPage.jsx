@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 
 import {
@@ -9,27 +9,87 @@ import {
   MenuItem,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 
+import AllBoardsPurchasesView from '../components/AllBoardsPurchasesView.jsx';
+import { PAGE_SIZE_DEFAULT } from '../components/LinesTable.jsx';
 import PurchaseBoardView from '../components/PurchaseBoardView.jsx';
 import { api } from '../lib/apiClient.js';
 
+/** Read the persisted filters back from the URL. */
+function readFilters(params) {
+  return {
+    value: params.get('value') ?? '',
+    valueRegex: params.get('valueRe') === '1',
+    valueCaseSensitive: params.get('valueCase') === '1',
+    footprint: params.get('fp') ?? '',
+    footprintRegex: params.get('fpRe') === '1',
+    footprintCaseSensitive: params.get('fpCase') === '1',
+    qtyOp: params.get('qtyOp') ?? '',
+    qty: params.get('qty') ?? '',
+    seller: params.get('seller') ?? '',
+  };
+}
+
+/** Map the filters to their (short) URL parameter names. */
+function filtersToParams(filters) {
+  return {
+    value: filters.value,
+    valueRe: filters.valueRegex ? '1' : '',
+    valueCase: filters.valueCaseSensitive ? '1' : '',
+    fp: filters.footprint,
+    fpRe: filters.footprintRegex ? '1' : '',
+    fpCase: filters.footprintCaseSensitive ? '1' : '',
+    qtyOp: filters.qtyOp,
+    qty: filters.qty,
+    seller: filters.seller,
+  };
+}
+
 /**
- * "Закупки": the purchase table of a single board, selected in the header.
- * Boards are managed (imported, renamed, deleted) on the "Платы" tab; the
- * service "Докупить" board has its own tab and is not listed here.
+ * "Закупки": the purchase table of the selected board ("По платам") or a summary
+ * of every enabled board ("Все"). The active tab, board, filters and pagination
+ * live in the URL, so they survive tab switches, navigation and edits.
  */
 export default function PurchasesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'all' ? 'all' : 'boards';
   const boardId = searchParams.get('board') || '';
+  const page = Math.max(0, Number(searchParams.get('page')) || 0);
+  const pageSize = Number(searchParams.get('size')) || PAGE_SIZE_DEFAULT;
+  const filters = useMemo(() => readFilters(searchParams), [searchParams]);
 
   const [boards, setBoards] = useState([]);
   const [products, setProducts] = useState([]);
   const [view, setView] = useState(null);
+  const [allView, setAllView] = useState(null);
   const [count, setCount] = useState(1);
   const [error, setError] = useState(null);
   const [loaded, setLoaded] = useState(false);
+
+  /** Merge a patch into the URL, preserving every other parameter. */
+  const updateParams = useCallback(
+    (patch, options = { replace: true }) => {
+      setSearchParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          for (const [key, value] of Object.entries(patch)) {
+            if (value === undefined || value === null || value === '') {
+              next.delete(key);
+            } else {
+              next.set(key, String(value));
+            }
+          }
+          return next;
+        },
+        options,
+      );
+    },
+    [setSearchParams],
+  );
 
   useEffect(() => {
     (async () => {
@@ -51,16 +111,26 @@ export default function PurchasesPage() {
 
   // Fall back to the first enabled board when none (or a disabled one) is selected.
   useEffect(() => {
-    if (!loaded || boards.length === 0) {
+    if (!loaded || tab !== 'boards' || boards.length === 0) {
       return;
     }
     const selectedExists = boards.some((board) => board.id === boardId);
     if (!selectedExists) {
-      setSearchParams({ board: boards[0].id }, { replace: true });
+      updateParams({ board: boards[0].id });
     }
-  }, [loaded, boardId, boards, setSearchParams]);
+  }, [loaded, tab, boardId, boards, updateParams]);
 
   const loadView = useCallback(async () => {
+    if (tab === 'all') {
+      try {
+        setAllView(await api.boards.view('all'));
+        setError(null);
+      } catch (loadError) {
+        setError(loadError.message);
+        setAllView(null);
+      }
+      return;
+    }
     if (!boardId) {
       setView(null);
       return;
@@ -74,7 +144,7 @@ export default function PurchasesPage() {
       setError(loadError.message);
       setView(null);
     }
-  }, [boardId]);
+  }, [tab, boardId]);
 
   useEffect(() => {
     loadView();
@@ -89,6 +159,15 @@ export default function PurchasesPage() {
     }
   }
 
+  async function patchLines(lineIds, changes) {
+    try {
+      await api.boards.updateLines(lineIds, changes);
+      await loadView();
+    } catch (patchError) {
+      setError(patchError.message);
+    }
+  }
+
   async function saveCount() {
     try {
       await api.boards.update(boardId, { count: Number(count) });
@@ -96,6 +175,32 @@ export default function PurchasesPage() {
     } catch (saveError) {
       setError(saveError.message);
     }
+  }
+
+  function changeFilters(changes) {
+    const next = { ...filters, ...changes };
+    updateParams({ ...filtersToParams(next), page: '' });
+  }
+
+  function changeTab(next) {
+    updateParams({ tab: next === 'all' ? 'all' : '', page: '' });
+  }
+
+  function changePage(next) {
+    updateParams({ page: next > 0 ? next : '' });
+  }
+
+  function changePageSize(next) {
+    updateParams({ size: next === PAGE_SIZE_DEFAULT ? '' : next, page: '' });
+  }
+
+  /** Link to a board keeping the current filters (so the same rows show there). */
+  function boardHref(id) {
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    next.delete('page');
+    next.set('board', id);
+    return `/purchases?${next.toString()}`;
   }
 
   if (!loaded) {
@@ -135,46 +240,66 @@ export default function PurchasesPage() {
         <Typography variant="h5" sx={{ mr: 1 }}>
           Закупки
         </Typography>
-        <TextField
-          select
+        <ToggleButtonGroup
           size="small"
-          label="Плата"
-          value={boardId}
-          onChange={(event) => setSearchParams({ board: event.target.value })}
-          sx={{ minWidth: 260 }}
+          exclusive
+          value={tab}
+          onChange={(event, value) => value && changeTab(value)}
         >
-          {boards.map((board) => (
-            <MenuItem key={board.id} value={board.id}>
-              {board.name} ({board.lineCount} поз.)
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          size="small"
-          type="number"
-          label="Плат в изделии"
-          value={count}
-          onChange={(event) => setCount(event.target.value)}
-          sx={{ width: 160 }}
-        />
-        <Button variant="outlined" onClick={saveCount}>
-          Применить
-        </Button>
-        <Box sx={{ flexGrow: 1 }} />
-        <Button
-          variant="outlined"
-          component="a"
-          href={`/api/boards/${boardId}/export?format=xlsx`}
-        >
-          Экспорт в Excel
-        </Button>
-        <Button
-          variant="outlined"
-          component="a"
-          href={`/api/boards/${boardId}/export?format=csv`}
-        >
-          Экспорт в CSV
-        </Button>
+          <ToggleButton value="boards">По платам</ToggleButton>
+          <ToggleButton value="all">Все</ToggleButton>
+        </ToggleButtonGroup>
+
+        {tab === 'boards' && (
+          <>
+            <TextField
+              select
+              size="small"
+              label="Плата"
+              value={boardId}
+              onChange={(event) => updateParams({ board: event.target.value, page: '' })}
+              sx={{ minWidth: 260 }}
+            >
+              {boards.map((board) => (
+                <MenuItem key={board.id} value={board.id}>
+                  {board.name} ({board.lineCount} поз.)
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              size="small"
+              type="number"
+              label="Плат в изделии"
+              value={count}
+              onChange={(event) => setCount(event.target.value)}
+              sx={{ width: 160 }}
+            />
+            <Button variant="outlined" onClick={saveCount}>
+              Применить
+            </Button>
+            <Box sx={{ flexGrow: 1 }} />
+            <Button
+              variant="outlined"
+              component="a"
+              href={`/api/boards/${boardId}/export?format=xlsx`}
+            >
+              Экспорт в Excel
+            </Button>
+            <Button
+              variant="outlined"
+              component="a"
+              href={`/api/boards/${boardId}/export?format=csv`}
+            >
+              Экспорт в CSV
+            </Button>
+          </>
+        )}
+
+        {tab === 'all' && (
+          <Typography variant="caption" color="text.secondary">
+            Сводная таблица по всем включённым платам.
+          </Typography>
+        )}
       </Stack>
 
       {error && (
@@ -183,13 +308,38 @@ export default function PurchasesPage() {
         </Alert>
       )}
 
-      {view ? (
+      {tab === 'all' ? (
+        allView ? (
+          <AllBoardsPurchasesView
+            view={allView}
+            products={products}
+            filters={filters}
+            onFiltersChange={changeFilters}
+            onPatchLines={patchLines}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={changePage}
+            onPageSizeChange={changePageSize}
+            boardHref={boardHref}
+          />
+        ) : (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
+            <CircularProgress />
+          </Box>
+        )
+      ) : view ? (
         <PurchaseBoardView
           board={view.board}
           blocks={view.blocks}
           totals={view.totals}
           products={products}
           onPatchLine={patchLine}
+          filters={filters}
+          onFiltersChange={changeFilters}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={changePage}
+          onPageSizeChange={changePageSize}
         />
       ) : (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>

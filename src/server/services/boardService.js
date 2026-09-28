@@ -1,6 +1,7 @@
 // Boards, their BOM lines and the computed purchase columns.
 import {
   buildMatchKey,
+  chooseDisplay,
   collapseWhitespace,
   normalizeFootprint,
   parseQty,
@@ -263,6 +264,185 @@ export async function getBoardView(boardId) {
 }
 
 /**
+ * "Все" tab: a summary of every enabled non-service board.
+ *
+ * Rows are grouped by value + footprint (the line `matchKey`) **and** the chosen
+ * source (`productId`): the same component bought from different products shows
+ * up as several rows, and `hasMultipleSources` flags a component whose chosen
+ * products differ — a hint that the sources are worth unifying to save on
+ * delivery. "Общие" lines are left to the common-purchases sheet.
+ */
+export async function getAllBoardsView() {
+  const [settings, categories, sellers, products, boards, lines] = await Promise.all([
+    getSettings(),
+    listRuntimeCategories(),
+    Seller.find().lean(),
+    SellerProduct.find().lean(),
+    Board.find().lean(),
+    BomLine.find({ common: { $ne: true } }).lean(),
+  ]);
+
+  const boardMap = new Map(
+    boards
+      .filter((board) => board.enabled !== false && !board.isService)
+      .map((board) => [String(board._id), board]),
+  );
+  const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
+  const productMap = new Map(products.map((product) => [String(product._id), product]));
+
+  const groups = new Map();
+  for (const line of lines) {
+    const board = boardMap.get(String(line.boardId));
+    if (!board) {
+      continue;
+    }
+    const source = line.productId ? String(line.productId) : '';
+    const key = `${line.matchKey}\u0000${source}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        matchKey: line.matchKey,
+        productId: source || null,
+        footprint: line.footprint ?? '',
+        reference: line.reference ?? '',
+        totalQty: 0,
+        byBoard: {},
+        boards: new Map(),
+        lineIds: [],
+        displays: [],
+        packsOverrides: new Set(),
+        shippingOverrides: new Set(),
+        descriptions: new Set(),
+      };
+      groups.set(key, group);
+    }
+    const qty = (line.qty ?? 0) * (board.count ?? 1);
+    group.totalQty += qty;
+    group.byBoard[board.name] = (group.byBoard[board.name] ?? 0) + qty;
+    group.boards.set(String(board._id), board.name);
+    group.lineIds.push(String(line._id));
+    group.displays.push(collapseWhitespace(line.value ?? ''));
+    group.packsOverrides.add(
+      line.packsOverride === undefined || line.packsOverride === null
+        ? ''
+        : String(line.packsOverride),
+    );
+    group.shippingOverrides.add(
+      line.shippingCost === undefined || line.shippingCost === null
+        ? ''
+        : String(line.shippingCost),
+    );
+    group.descriptions.add(String(line.description ?? ''));
+  }
+
+  // A component (same matchKey) with two or more chosen products is flagged.
+  const sourcesByMatchKey = new Map();
+  for (const group of groups.values()) {
+    if (!group.productId) {
+      continue;
+    }
+    if (!sourcesByMatchKey.has(group.matchKey)) {
+      sourcesByMatchKey.set(group.matchKey, new Set());
+    }
+    sourcesByMatchKey.get(group.matchKey).add(group.productId);
+  }
+
+  // The single value shared by every line of the group, or `null` when they differ.
+  const sharedValue = (values) => {
+    if (values.size !== 1) {
+      return { value: null, mixed: values.size > 1 };
+    }
+    const [only] = values;
+    return { value: only === '' ? null : only, mixed: false };
+  };
+
+  const rows = [];
+  for (const group of groups.values()) {
+    const display = chooseDisplay(group.displays) ?? '';
+    const { parsed, display: shown, category, subcategory, sort } = classifyLine(
+      { reference: group.reference, value: display, footprint: group.footprint },
+      categories,
+      settings,
+    );
+
+    const product = group.productId ? productMap.get(group.productId) ?? null : null;
+    const seller = product ? sellerMap.get(String(product.sellerId)) ?? null : null;
+
+    const packsInfo = sharedValue(group.packsOverrides);
+    const shippingInfo = sharedValue(group.shippingOverrides);
+    const descriptionInfo = sharedValue(group.descriptions);
+
+    // The hand-entered value wins; otherwise the product's delivery cost applies.
+    const shippingCost =
+      shippingInfo.value !== null
+        ? Number(shippingInfo.value)
+        : product
+          ? product.shippingCost ?? 0
+          : null;
+    const packs =
+      packsInfo.value !== null
+        ? Number(packsInfo.value)
+        : product
+          ? Math.ceil(group.totalQty / (product.packQty || 1))
+          : null;
+    const cost =
+      packs !== null && product
+        ? packs * product.packPrice + (shippingCost || 0)
+        : null;
+
+    rows.push({
+      matchKey: group.matchKey,
+      reference: group.reference,
+      value: shown,
+      footprint: group.footprint,
+      totalQty: group.totalQty,
+      byBoard: group.byBoard,
+      boards: [...group.boards.entries()].map(([id, name]) => ({ id, name })),
+      lineIds: group.lineIds,
+      hasMultipleSources:
+        Boolean(group.productId) &&
+        (sourcesByMatchKey.get(group.matchKey)?.size ?? 0) >= 2,
+      productId: group.productId,
+      sellerId: seller ? String(seller._id) : null,
+      common: false,
+      shippingCost,
+      shippingOverride: shippingInfo.value === null ? null : Number(shippingInfo.value),
+      packsOverride: packsInfo.value === null ? null : Number(packsInfo.value),
+      description: descriptionInfo.value ?? '',
+      mixed: {
+        packs: packsInfo.mixed,
+        shipping: shippingInfo.mixed,
+        description: descriptionInfo.mixed,
+      },
+      packs,
+      cost,
+      parsed,
+      display: shown,
+      category,
+      subcategory,
+      sort,
+    });
+  }
+
+  const blocks = groupIntoBlocks(rows, categories, settings);
+  const totals = { cost: 0, shippingCost: 0 };
+  for (const row of rows) {
+    if (row.cost !== null) {
+      totals.cost += row.cost;
+    }
+    if (row.shippingCost !== null) {
+      totals.shippingCost += row.shippingCost;
+    }
+  }
+
+  const boardList = [...boardMap.values()]
+    .map((board) => ({ id: String(board._id), name: board.name }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  return { scope: 'all', boards: boardList, blocks: serializeBlocks(blocks), totals };
+}
+
+/**
  * Update the hand-filled fields of a line. Manual ("Докупить") lines may also
  * change their value/qty/footprint/reference, which recomputes the match key.
  */
@@ -376,6 +556,21 @@ export async function updateLine(lineId, payload = {}) {
   }
   await line.save();
   return line;
+}
+
+/**
+ * Apply the same changes to several lines — used by the "Все" tab, where one
+ * aggregated row stands for every board line of the same component+source.
+ */
+export async function updateLinesBulk(lineIds, changes = {}) {
+  const ids = Array.isArray(lineIds) ? lineIds.filter(Boolean) : [];
+  if (ids.length === 0) {
+    throw badRequest('lineIds is required');
+  }
+  for (const lineId of ids) {
+    await updateLine(lineId, changes);
+  }
+  return ids.length;
 }
 
 export async function deleteLine(lineId) {

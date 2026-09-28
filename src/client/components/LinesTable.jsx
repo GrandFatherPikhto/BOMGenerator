@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -94,19 +94,63 @@ export function paginateBlocks(blocks, pageSize) {
  * When `renderDetail` is provided, every line gets a leading expander arrow; the
  * detail (e.g. the reference designators) is hidden until expanded. All rows
  * start collapsed. `rowSx(row)` can style a whole line row.
+ *
+ * Pagination is internal by default; pass `page`/`pageSize` (and their change
+ * handlers) to control it from the outside — then the caller owns the reset,
+ * which is what the URL-backed purchases screen needs.
  */
-export function LinesTable({ blocks, columns, renderDetail, rowSx, resetKey }) {
+export function LinesTable({
+  blocks,
+  columns,
+  renderDetail,
+  rowSx,
+  resetKey,
+  page: pageProp,
+  pageSize: pageSizeProp,
+  onPageChange,
+  onPageSizeChange,
+}) {
   const hasDetail = typeof renderDetail === 'function';
   const columnSpan = columns.length + (hasDetail ? 1 : 0);
   const [expanded, setExpanded] = useState(() => new Set());
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
+  const [internalPage, setInternalPage] = useState(0);
+  const [internalSize, setInternalSize] = useState(PAGE_SIZE_DEFAULT);
+
+  const pageControlled = pageProp !== undefined;
+  const sizeControlled = pageSizeProp !== undefined;
+  const page = pageControlled ? pageProp : internalPage;
+  const pageSize = sizeControlled ? pageSizeProp : internalSize;
+
+  const setPage = useCallback(
+    (next) => {
+      const value = typeof next === 'function' ? next(page) : next;
+      if (pageControlled) {
+        onPageChange?.(value);
+      } else {
+        setInternalPage(value);
+      }
+    },
+    [pageControlled, onPageChange, page],
+  );
+  const setPageSize = useCallback(
+    (next) => {
+      if (sizeControlled) {
+        onPageSizeChange?.(next);
+      } else {
+        setInternalSize(next);
+      }
+    },
+    [sizeControlled, onPageSizeChange],
+  );
 
   // Reset only when the table context changes (another board/mode) or the page
   // size changes — never on a data refresh, so inline editing keeps the page.
+  // Skipped when the page is controlled: the caller resets it.
   useEffect(() => {
-    setPage(0);
-  }, [resetKey, pageSize]);
+    if (!pageControlled) {
+      setInternalPage(0);
+    }
+  }, [resetKey, pageSize, pageControlled]);
 
   const lineCount = useMemo(
     () => blocks.filter((block) => block.kind === 'line').length,
@@ -119,7 +163,7 @@ export function LinesTable({ blocks, columns, renderDetail, rowSx, resetKey }) {
   // Clamp when the number of pages shrinks (e.g. rows were removed).
   useEffect(() => {
     setPage((current) => Math.min(current, Math.max(0, pages.length - 1)));
-  }, [pages.length]);
+  }, [pages.length, setPage]);
 
   function toggle(key) {
     setExpanded((previous) => {
@@ -230,7 +274,7 @@ export function LinesTable({ blocks, columns, renderDetail, rowSx, resetKey }) {
   );
 }
 
-const PAGE_SIZE_DEFAULT = 20;
+export const PAGE_SIZE_DEFAULT = 20;
 
 /** Link to a product page; falls back to the seller page when it has no URL. */
 export function ProductLink({ product }) {
@@ -361,9 +405,11 @@ export function ShippingCell({ row, onChange }) {
       type="number"
       value={value}
       placeholder={
-        row.shippingCost === null || row.shippingCost === undefined
-          ? ''
-          : String(row.shippingCost)
+        row.mixed?.shipping
+          ? 'разные'
+          : row.shippingCost === null || row.shippingCost === undefined
+            ? ''
+            : String(row.shippingCost)
       }
       onChange={(event) => setValue(event.target.value)}
       onBlur={() => {
@@ -393,7 +439,13 @@ export function PacksCell({ row, onChange }) {
       variant="standard"
       type="number"
       value={value}
-      placeholder={row.packs === null || row.packs === undefined ? '' : String(row.packs)}
+      placeholder={
+        row.mixed?.packs
+          ? 'разные'
+          : row.packs === null || row.packs === undefined
+            ? ''
+            : String(row.packs)
+      }
       onChange={(event) => setValue(event.target.value)}
       onBlur={() => {
         const current = row.packsOverride ?? '';
@@ -419,6 +471,7 @@ export function DescriptionCell({ row, onChange }) {
       variant="standard"
       multiline
       value={value}
+      placeholder={row.mixed?.description ? 'разные' : ''}
       onChange={(event) => setValue(event.target.value)}
       onBlur={() => {
         const current = row.description ?? '';

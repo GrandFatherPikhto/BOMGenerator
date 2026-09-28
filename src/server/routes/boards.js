@@ -9,12 +9,14 @@ import {
   createBoard,
   deleteBoard,
   deleteLine,
+  getAllBoardsView,
   getBoard,
   getBoardView,
   listBoards,
   serializeBoard,
   updateBoard,
   updateLine,
+  updateLinesBulk,
 } from '../services/boardService.js';
 import { importCsv } from '../services/importService.js';
 
@@ -67,6 +69,16 @@ router.post(
   }),
 );
 
+// Bulk update of the lines behind one "Все" row. Declared before "/:id" so that
+// "lines" is not treated as a board id.
+router.put(
+  '/lines',
+  asyncHandler(async (req, res) => {
+    const updated = await updateLinesBulk(req.body.lineIds, req.body.changes);
+    res.json({ updated });
+  }),
+);
+
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
@@ -89,10 +101,15 @@ router.delete(
   }),
 );
 
-// Grouped rows with calculated columns and the "Итого" totals.
+// Grouped rows with calculated columns and the "Итого" totals. The special id
+// "all" returns the summary of every enabled board (the "Все" tab).
 router.get(
   '/:id/lines',
   asyncHandler(async (req, res) => {
+    if (req.params.id === 'all') {
+      res.json(await getAllBoardsView());
+      return;
+    }
     res.json(await getBoardView(req.params.id));
   }),
 );
