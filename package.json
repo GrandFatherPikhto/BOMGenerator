@@ -17,7 +17,7 @@
     "seed": "node scripts/seed.js",
     "migrate": "node scripts/migrate.js",
     "test": "node --test --test-concurrency=1 \"tests/**/*.test.js\" && vitest run",
-    "test:unit": "node --test \"tests/shared/**/*.test.js\"",
+    "test:unit": "node --test \"tests/shared/**/*.test.js\" \"tests/server/**/*.test.js\"",
     "test:api": "node --test --test-concurrency=1 \"tests/api/**/*.test.js\"",
     "test:client": "vitest run",
     "test:coverage": "node --test --experimental-test-coverage --test-concurrency=1 \"tests/shared/**/*.test.js\" \"tests/api/**/*.test.js\"",

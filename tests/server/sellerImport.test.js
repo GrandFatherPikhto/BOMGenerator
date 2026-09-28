@@ -1,4 +1,6 @@
-// Unit tests for the seller/product parsing helpers (CSV encodings + XLSX cells).
+// Unit tests for the server seller/product parsing helpers (CSV encodings +
+// XLSX cells). These exercise `src/server/lib/sellerImport.js`, so they live
+// under `tests/server` rather than `tests/shared`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
