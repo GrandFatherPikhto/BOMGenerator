@@ -40,4 +40,51 @@ describe('usePagination', () => {
     expect(result.current.page).toBe(0);
     expect(result.current.pageItems).toHaveLength(10);
   });
+
+  it('keeps the given initial page on the first render', () => {
+    const { result } = renderHook(() =>
+      usePagination(items, { initialPage: 2, initialPageSize: 10 }),
+    );
+    expect(result.current.page).toBe(2);
+    expect(result.current.pageSize).toBe(10);
+    expect(result.current.pageItems[0]).toBe(21);
+  });
+
+  it('still accepts a bare number as the initial page size', () => {
+    const { result } = renderHook(() => usePagination(items, 10));
+    expect(result.current.pageSize).toBe(10);
+  });
+
+  it('with a resetKey keeps a restored page across the first load', () => {
+    const { result, rerender } = renderHook(
+      ({ list, key }) =>
+        usePagination(list, { initialPage: 2, initialPageSize: 10, resetKey: key }),
+      { initialProps: { list: [], key: 'shop' } },
+    );
+    expect(result.current.page).toBe(2);
+
+    rerender({ list: items, key: 'shop' });
+    expect(result.current.page).toBe(2);
+  });
+
+  it('with a resetKey resets when the key changes', () => {
+    const { result, rerender } = renderHook(
+      ({ key }) =>
+        usePagination(items, { initialPage: 2, initialPageSize: 10, resetKey: key }),
+      { initialProps: { key: 'shop' } },
+    );
+    act(() => result.current.setPage(3));
+    expect(result.current.page).toBe(3);
+
+    rerender({ key: 'all' });
+    expect(result.current.page).toBe(0);
+  });
+
+  it('clamps a restored page that is past the end of the loaded list', () => {
+    const { result } = renderHook(() =>
+      usePagination(items, { initialPage: 4, initialPageSize: 20 }),
+    );
+    expect(result.current.page).toBe(2);
+    expect(result.current.pageItems[0]).toBe(41);
+  });
 });
