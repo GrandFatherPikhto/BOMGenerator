@@ -10,7 +10,6 @@ import {
   createSellerWithProduct,
   disconnectTestDb,
   findLine,
-  linesOf,
   prepareApp,
 } from './helpers.js';
 

@@ -111,7 +111,7 @@ export function serializeBlocks(blocks) {
     if (block.kind !== 'line') {
       return block;
     }
-    const { parsed, display, sort, ...line } = block.row;
+    const { parsed: _parsed, display: _display, sort: _sort, ...line } = block.row;
     return { kind: 'line', line };
   });
 }

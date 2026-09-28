@@ -8,13 +8,13 @@ const settingsSchema = new mongoose.Schema(
     defaultCategoryName: { type: String, default: '\u041f\u0440\u043e\u0447\u0435\u0435' },
     defaultSort: {
       type: String,
-      enum: ['value_desc', 'value_asc', 'name'],
+      enum: SORT_SPECS,
       default: 'name',
     },
     // Page width of the whole UI: 1536 px / 1920 px / full.
     pageWidth: {
       type: String,
-      enum: ['normal', 'wide', 'full'],
+      enum: PAGE_WIDTHS,
       default: 'normal',
     },
     subcategoryOtherLabel: {

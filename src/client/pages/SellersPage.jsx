@@ -194,11 +194,10 @@ export default function SellersPage() {
 
   async function removeSeller(seller) {
     // eslint-disable-next-line no-alert
-    if (
-      !window.confirm(
-        `Удалить продавца «${seller.name}» вместе с его товарами (${seller.productCount})?`,
-      )
-    ) {
+    const confirmed = window.confirm(
+      `Удалить продавца «${seller.name}» вместе с его товарами (${seller.productCount})?`,
+    );
+    if (!confirmed) {
       return;
     }
     try {
