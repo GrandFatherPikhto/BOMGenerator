@@ -177,31 +177,52 @@ export default function PurchasesPage() {
     }
   }
 
-  function changeFilters(changes) {
-    const next = { ...filters, ...changes };
-    updateParams({ ...filtersToParams(next), page: '' });
-  }
+  // The handlers are memoised so the controlled pagination in LinesTable does
+  // not see a new callback on every render (which would trigger extra renders).
+  const changeFilters = useCallback(
+    (changes) => {
+      const next = { ...filters, ...changes };
+      updateParams({ ...filtersToParams(next), page: '' });
+    },
+    [filters, updateParams],
+  );
 
-  function changeTab(next) {
-    updateParams({ tab: next === 'all' ? 'all' : '', page: '' });
-  }
+  // The seller belongs to one table: switching tab drops it (the other board/tab
+  // may not even have that seller).
+  const changeTab = useCallback(
+    (next) => {
+      updateParams({ tab: next === 'all' ? 'all' : '', seller: '', page: '' });
+    },
+    [updateParams],
+  );
 
-  function changePage(next) {
-    updateParams({ page: next > 0 ? next : '' });
-  }
+  const changePage = useCallback(
+    (next) => {
+      updateParams({ page: next > 0 ? next : '' });
+    },
+    [updateParams],
+  );
 
-  function changePageSize(next) {
-    updateParams({ size: next === PAGE_SIZE_DEFAULT ? '' : next, page: '' });
-  }
+  const changePageSize = useCallback(
+    (next) => {
+      updateParams({ size: next === PAGE_SIZE_DEFAULT ? '' : next, page: '' });
+    },
+    [updateParams],
+  );
 
-  /** Link to a board keeping the current filters (so the same rows show there). */
-  function boardHref(id) {
-    const next = new URLSearchParams(searchParams);
-    next.delete('tab');
-    next.delete('page');
-    next.set('board', id);
-    return `/purchases?${next.toString()}`;
-  }
+  /** Link to a board keeping the value/footprint/quantity filters, but not the
+   * seller (it is specific to the board it was chosen in). */
+  const boardHref = useCallback(
+    (id) => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('tab');
+      next.delete('page');
+      next.delete('seller');
+      next.set('board', id);
+      return `/purchases?${next.toString()}`;
+    },
+    [searchParams],
+  );
 
   if (!loaded) {
     return (
@@ -257,7 +278,9 @@ export default function PurchasesPage() {
               size="small"
               label="Плата"
               value={boardId}
-              onChange={(event) => updateParams({ board: event.target.value, page: '' })}
+              onChange={(event) =>
+                updateParams({ board: event.target.value, seller: '', page: '' })
+              }
               sx={{ minWidth: 260 }}
             >
               {boards.map((board) => (

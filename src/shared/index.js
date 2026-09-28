@@ -33,4 +33,5 @@ export {
   compileTextMatch,
   compileLineFilter,
   filterBlocks,
+  activeSellerId,
 } from './lineFilter.js';

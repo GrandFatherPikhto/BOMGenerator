@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  activeSellerId,
   compileLineFilter,
   compileTextMatch,
   filterBlocks,
@@ -158,6 +159,22 @@ test('the seller condition keeps only the rows of that seller', () => {
   // No seller picked -> no condition.
   assert.equal(compileLineFilter({ seller: '' }).active, false);
   assert.equal(rows.every(compileLineFilter({}).match), true);
+});
+
+test('a seller outside the current table is ignored', () => {
+  const options = [
+    { id: 's1', name: 'Shop A' },
+    { id: 's2', name: 'Shop B' },
+  ];
+
+  assert.equal(activeSellerId(options, 's1'), 's1');
+  assert.equal(activeSellerId(options, 's2'), 's2');
+  // A stale id (another board/tab) or no options at all -> no condition.
+  assert.equal(activeSellerId(options, 's9'), '');
+  assert.equal(activeSellerId([], 's1'), '');
+  assert.equal(activeSellerId(undefined, 's1'), '');
+  assert.equal(activeSellerId(options, ''), '');
+  assert.equal(activeSellerId(options, undefined), '');
 });
 
 test('filterBlocks without a matcher returns the input unchanged', () => {

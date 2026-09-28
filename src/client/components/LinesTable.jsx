@@ -160,10 +160,15 @@ export function LinesTable({
   const safePage = Math.min(page, Math.max(0, pages.length - 1));
   const visibleBlocks = pages[safePage] ?? [];
 
-  // Clamp when the number of pages shrinks (e.g. rows were removed).
+  // Clamp only when the current page really fell out of range. Calling the
+  // controlled setter on every render would fight with the parent (URL) state
+  // and turn page switching into a navigation loop.
   useEffect(() => {
-    setPage((current) => Math.min(current, Math.max(0, pages.length - 1)));
-  }, [pages.length, setPage]);
+    const lastPage = Math.max(0, pages.length - 1);
+    if (page > lastPage) {
+      setPage(lastPage);
+    }
+  }, [page, pages.length, setPage]);
 
   function toggle(key) {
     setExpanded((previous) => {

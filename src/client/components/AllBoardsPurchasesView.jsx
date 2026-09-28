@@ -4,7 +4,7 @@ import { Link as RouterLink } from 'react-router-dom';
 
 import { Link, Paper, Stack, Typography } from '@mui/material';
 
-import { compileLineFilter, filterBlocks } from '../../shared/index.js';
+import { activeSellerId, compileLineFilter, filterBlocks } from '../../shared/index.js';
 import { formatMoney } from '../format.js';
 import {
   DescriptionCell,
@@ -73,7 +73,18 @@ export default function AllBoardsPurchasesView({
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [rows, productMap]);
 
-  const filter = useMemo(() => compileLineFilter(filters), [filters]);
+  // A seller persisted from another board/tab is ignored: it neither filters the
+  // rows nor narrows the product list here.
+  const activeSeller = useMemo(
+    () => activeSellerId(sellerOptions, filters.seller),
+    [sellerOptions, filters.seller],
+  );
+  const effectiveFilters = useMemo(
+    () => (activeSeller === filters.seller ? filters : { ...filters, seller: '' }),
+    [filters, activeSeller],
+  );
+
+  const filter = useMemo(() => compileLineFilter(effectiveFilters), [effectiveFilters]);
   const visibleBlocks = useMemo(
     () => filterBlocks(view?.blocks ?? [], filter.match),
     [view, filter],
@@ -124,7 +135,7 @@ export default function AllBoardsPurchasesView({
         <ProductCell
           row={row}
           products={products}
-          sellerFilter={filters.seller}
+          sellerFilter={activeSeller}
           onChange={patch(row)}
         />
       ),
@@ -170,7 +181,7 @@ export default function AllBoardsPurchasesView({
     <>
       <LineFiltersBar
         rows={rows}
-        filters={filters}
+        filters={effectiveFilters}
         onChange={onFiltersChange}
         sellerOptions={sellerOptions}
       />

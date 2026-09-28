@@ -20,7 +20,7 @@ import {
 } from '../components/LinesTable.jsx';
 import LineFiltersBar, { EMPTY_LINE_FILTERS } from '../components/LineFiltersBar.jsx';
 import { formatMoney } from '../format.js';
-import { compileLineFilter, filterBlocks } from '../../shared/index.js';
+import { activeSellerId, compileLineFilter, filterBlocks } from '../../shared/index.js';
 
 /**
  * "Общие закупки": the shared need of every board position marked "Общие",
@@ -74,7 +74,16 @@ export default function CommonPurchasesPage() {
         .map((block) => block.line),
     [view],
   );
-  const filter = useMemo(() => compileLineFilter(filters), [filters]);
+  const activeSeller = useMemo(
+    () => activeSellerId(sellerOptions, filters.seller),
+    [sellerOptions, filters.seller],
+  );
+  const effectiveFilters = useMemo(
+    () => (activeSeller === filters.seller ? filters : { ...filters, seller: '' }),
+    [filters, activeSeller],
+  );
+
+  const filter = useMemo(() => compileLineFilter(effectiveFilters), [effectiveFilters]);
   const visibleBlocks = useMemo(
     () => filterBlocks(view?.blocks ?? [], filter.match),
     [view, filter],
@@ -134,7 +143,7 @@ export default function CommonPurchasesPage() {
         <ProductCell
           row={row}
           products={products}
-          sellerFilter={filters.seller}
+          sellerFilter={activeSeller}
           onChange={(c) => patch(row, c)}
         />
       ),
@@ -205,7 +214,7 @@ export default function CommonPurchasesPage() {
         <>
           <LineFiltersBar
             rows={rows}
-            filters={filters}
+            filters={effectiveFilters}
             onChange={(changes) =>
               setFilters((previous) => ({ ...previous, ...changes }))
             }

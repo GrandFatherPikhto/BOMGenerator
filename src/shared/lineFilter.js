@@ -80,6 +80,24 @@ function compileQtyMatch(qtyOp, qty) {
 }
 
 /**
+ * The seller condition only makes sense inside the table it was chosen in. A
+ * value persisted in the URL (or left over from another board/tab) that is not
+ * among `sellerOptions` is treated as "no seller", so a stale filter cannot
+ * hide every row or narrow the product list.
+ */
+export function activeSellerId(sellerOptions, sellerId) {
+  const id = String(sellerId ?? '').trim();
+  if (!id) {
+    return '';
+  }
+  return (sellerOptions ?? []).some(
+    (seller) => String(seller?.id ?? '') === id,
+  )
+    ? id
+    : '';
+}
+
+/**
  * Compile the whole filter of a purchase table into
  * `{ active, errors: { value, footprint, qty }, match(row) }`.
  *

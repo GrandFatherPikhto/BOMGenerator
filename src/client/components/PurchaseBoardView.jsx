@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 
-import { compileLineFilter, filterBlocks } from '../../shared/index.js';
+import { activeSellerId, compileLineFilter, filterBlocks } from '../../shared/index.js';
 import { formatMoney } from '../format.js';
 import {
   CommonCell,
@@ -77,7 +77,18 @@ export default function PurchaseBoardView({
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [rows, productMap]);
 
-  const filter = useMemo(() => compileLineFilter(filters), [filters]);
+  // A seller persisted from another board/tab is ignored: it neither filters the
+  // rows nor narrows the product list here.
+  const activeSeller = useMemo(
+    () => activeSellerId(sellerOptions, filters.seller),
+    [sellerOptions, filters.seller],
+  );
+  const effectiveFilters = useMemo(
+    () => (activeSeller === filters.seller ? filters : { ...filters, seller: '' }),
+    [filters, activeSeller],
+  );
+
+  const filter = useMemo(() => compileLineFilter(effectiveFilters), [effectiveFilters]);
   const visibleBlocks = useMemo(
     () => filterBlocks(blocks, filter.match),
     [blocks, filter],
@@ -121,7 +132,7 @@ export default function PurchaseBoardView({
           <ProductCell
             row={row}
             products={products}
-            sellerFilter={filters.seller}
+            sellerFilter={activeSeller}
             onChange={patch(row)}
           />
         ),
@@ -179,7 +190,7 @@ export default function PurchaseBoardView({
     <>
       <LineFiltersBar
         rows={rows}
-        filters={filters}
+        filters={effectiveFilters}
         onChange={onFiltersChange}
         sellerOptions={sellerOptions}
       />
