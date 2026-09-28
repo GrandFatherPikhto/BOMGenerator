@@ -220,6 +220,10 @@ npm test
 
 - CSV export back to Excel/CSV is out of scope for now.
 - No authentication (intended for a single user on a local network).
+- Multi-document writes (import/re-import, board deletion, seller deletion) are
+  **not transactional**: a failure mid-way can leave a partially applied change.
+  This is a deliberate trade-off for standalone MongoDB; run a replica set and
+  the operations can be wrapped in sessions/transactions.
 - A `Footprint` cell listing several packages is kept as one row (the KiCad
   `Qty` is an aggregate and cannot be split reliably).
 - Bare capacitor shorthand such as `100n` is read as `100 nΩ` (same behaviour

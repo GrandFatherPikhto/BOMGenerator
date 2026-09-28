@@ -127,3 +127,25 @@ by the board screen (opened from "Платы") and by the "Закупки" tab. 
 a board selector in its header (the service "Докупить" board has its own tab and
 is not listed there). Both read the same endpoint, `GET /api/boards/:id/lines`,
 so behaviour and calculations never diverge.
+
+## Atomicity
+
+Several operations touch more than one document:
+
+| Operation | Documents written |
+|-----------|-------------------|
+| Import / re-import | `Board` + create/update/delete of its `BomLine`s |
+| Delete a board | `Board` + `BomLine.deleteMany` |
+| Delete a seller | `Seller` + its `SellerProduct`s + clearing `productId` in lines/overrides |
+| Bulk line update | `BomLine.updateMany` over the grouped lines |
+
+None of them runs inside a session/transaction. On a standalone `mongod`
+transactions are unavailable, so the services are written to be **idempotent
+where possible** (re-import converges on the next run, deletion can be retried)
+and the failure mode is a partially applied change rather than data corruption.
+To make these operations atomic, run MongoDB as a replica set and pass a session
+to `updateMany` / `deleteMany` / `create`.
+
+The purchase calculations themselves are pure functions in
+[`src/shared/purchase.js`](../src/shared/purchase.js), so the board, "Все" and
+common-purchases views share a single implementation and cannot drift apart.
