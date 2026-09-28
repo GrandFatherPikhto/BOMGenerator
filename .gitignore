@@ -6,6 +6,12 @@ auth.json
 *.log
 .DS_Store
 
+# Editor swap files may hold the contents of .env / auth.json.
+*.swp
+*.swo
+.*.swp
+.*.swo
+
 # Internal working documents (design notes and stage reports).
 # TODO: uncomment once the reports are no longer needed in the repository.
 techdocs/

@@ -1,9 +1,13 @@
 // Shared setup for API integration tests. They run against a real local
 // MongoDB using the database from MONGODB_URI_TEST (dropped before each test).
+import os from 'node:os';
+import path from 'node:path';
+
 import mongoose from 'mongoose';
 import request from 'supertest';
 
 import { createApp } from '../../src/server/app.js';
+import { resetAuthCache } from '../../src/server/lib/authConfig.js';
 import { ensureServiceBoard } from '../../src/server/services/boardService.js';
 import { seedDefaults } from '../../src/server/services/categoryService.js';
 import { getSettings } from '../../src/server/services/settingsService.js';
@@ -33,7 +37,23 @@ export async function resetDb() {
   await Promise.all(collections.map((collection) => collection.deleteMany({})));
 }
 
-export async function prepareApp() {
+/**
+ * Build the app for a test.
+ *
+ * Authentication is off unless the test asks for it: a developer's local
+ * `auth.json` in the project root must never turn the whole suite into 401s.
+ * Pass `{ authFile }` to point the app at a config the test controls.
+ */
+export async function prepareApp({ authFile } = {}) {
+  process.env.AUTH_FILE =
+    authFile ?? path.join(os.tmpdir(), `bom-auth-absent-${process.pid}.json`);
+  if (authFile) {
+    process.env.SESSION_SECRET = process.env.SESSION_SECRET ?? 'test-secret-key';
+  } else {
+    delete process.env.SESSION_SECRET;
+  }
+  resetAuthCache();
+
   await resetDb();
   await getSettings();
   await seedDefaults();

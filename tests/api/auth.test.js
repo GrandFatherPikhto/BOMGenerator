@@ -12,6 +12,9 @@ import { resetAuthCache } from '../../src/server/lib/authConfig.js';
 import { hashPassword } from '../../src/server/lib/password.js';
 import { connectTestDb, disconnectTestDb, prepareApp } from './helpers.js';
 
+// The auth file lives outside the repository so a test can never pick up (or
+// overwrite) a developer's local `auth.json`.
+
 const PASSWORD = 'correct horse battery staple';
 const SECOND_PASSWORD = 'another secret';
 const HASH = hashPassword(PASSWORD, { N: 1024 });
@@ -41,10 +44,9 @@ function sessionCookie(response) {
 }
 
 beforeEach(async () => {
-  process.env.AUTH_FILE = authFile;
-  process.env.SESSION_SECRET = 'test-secret-key';
+  // `prepareApp` disables auth unless it is given a file to use.
   writeUsers([{ username: 'denis', hash: HASH }]);
-  app = await prepareApp();
+  app = await prepareApp({ authFile });
 });
 
 test('without users the API stays open and /auth/me says so', async () => {
