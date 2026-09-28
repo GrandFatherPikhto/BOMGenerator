@@ -39,6 +39,7 @@ import ClearableTextField, { ClearButton } from '../components/ClearableTextFiel
 import ImportSellersDialog from '../components/ImportSellersDialog.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { usePagination } from '../hooks/usePagination.js';
+import { useUiState } from '../hooks/useUiState.js';
 import { api } from '../lib/apiClient.js';
 import { formatMoney } from '../format.js';
 import { compileProductFilter, scopeProducts } from '../../shared/index.js';
@@ -56,14 +57,28 @@ const EMPTY_PRODUCT = {
 };
 
 /**
+ * Defaults of the "sellers" UI-state section. Module-level on purpose: it is a
+ * dependency of the `useUiState` memo.
+ */
+const SELLERS_UI_DEFAULTS = {
+  selectedSellerId: null,
+  mode: 'shop',
+  page: 0,
+  pageSize: 20,
+  filters: { name: '', nameRegex: false, category: '', categoryRegex: false },
+};
+
+/**
  * Master-detail screen ("Продавцы/Товары"): the left list holds the shops, the
  * right side the products (offers) of the selected shop. A product carries the package
  * quantity, the price and the delivery cost; the shop carries the (optional)
  * URL and a free-text description.
  */
 export default function SellersPage() {
+  // Restored context: the selected shop, the mode, the filters and the page.
+  const [ui, updateUi] = useUiState('sellers', SELLERS_UI_DEFAULTS);
   const [sellers, setSellers] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(ui.selectedSellerId);
   const [products, setProducts] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [error, setError] = useState(null);
@@ -78,14 +93,14 @@ export default function SellersPage() {
 
   // Filters of the product list: an optional name and an optional category,
   // each matched as a substring or (with the checkbox on) as a regex.
-  const [nameFilter, setNameFilter] = useState('');
-  const [nameRegex, setNameRegex] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [categoryRegex, setCategoryRegex] = useState(false);
+  const [nameFilter, setNameFilter] = useState(ui.filters.name);
+  const [nameRegex, setNameRegex] = useState(ui.filters.nameRegex);
+  const [categoryFilter, setCategoryFilter] = useState(ui.filters.category);
+  const [categoryRegex, setCategoryRegex] = useState(ui.filters.categoryRegex);
   // "shop" — the products of the selected shop; "all" — a search across every
   // shop. Two explicit modes keep the master-detail view and the catalogue
   // search apart, instead of one checkbox that changes what the table means.
-  const [mode, setMode] = useState('shop');
+  const [mode, setMode] = useState(ui.mode);
 
   const filter = useMemo(
     () =>
@@ -110,8 +125,37 @@ export default function SellersPage() {
     [scopedProducts, filter],
   );
 
-  const { page, pageSize, setPage, setPageSize, pageItems } =
-    usePagination(visibleProducts);
+  // A restored page has to survive the first load, so the hook resets only when
+  // this key changes (another shop, mode or filter) and not on the list length.
+  const resetKey = `${mode}:${selectedId ?? ''}:${nameFilter}:${nameRegex}:${categoryFilter}:${categoryRegex}`;
+  const { page, pageSize, setPage, setPageSize, pageItems } = usePagination(
+    visibleProducts,
+    { initialPage: ui.page, initialPageSize: ui.pageSize || 20, resetKey },
+  );
+
+  // Persist the screen context so a switch to another tab does not reset it.
+  useEffect(() => {
+    updateUi({ selectedSellerId: selectedId });
+  }, [selectedId, updateUi]);
+
+  useEffect(() => {
+    updateUi({ mode });
+  }, [mode, updateUi]);
+
+  useEffect(() => {
+    updateUi({
+      filters: {
+        name: nameFilter,
+        nameRegex,
+        category: categoryFilter,
+        categoryRegex,
+      },
+    });
+  }, [nameFilter, nameRegex, categoryFilter, categoryRegex, updateUi]);
+
+  useEffect(() => {
+    updateUi({ page, pageSize });
+  }, [page, pageSize, updateUi]);
 
   const loadSellers = useCallback(async () => {
     try {

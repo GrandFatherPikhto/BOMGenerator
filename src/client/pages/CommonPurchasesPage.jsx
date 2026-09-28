@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   Alert,
@@ -15,14 +15,28 @@ import { api } from '../lib/apiClient.js';
 import { sellerOptionsFromProducts } from '../lib/sellerOptions.js';
 import {
   LinesTable,
+  PAGE_SIZE_DEFAULT,
   PacksCell,
   ProductCell,
   SellerCell,
   ShippingCell,
 } from '../components/LinesTable.jsx';
 import LineFiltersBar, { EMPTY_LINE_FILTERS } from '../components/LineFiltersBar.jsx';
+import { usePagination } from '../hooks/usePagination.js';
+import { useUiState } from '../hooks/useUiState.js';
 import { formatMoney } from '../format.js';
 import { activeSellerId, compileLineFilter, filterBlocks } from '../../shared/index.js';
+
+/**
+ * Defaults of the "common" UI-state section. Module-level on purpose: it is a
+ * dependency of the `useUiState` memo.
+ */
+const COMMON_UI_DEFAULTS = {
+  mode: 'merged',
+  page: 0,
+  size: PAGE_SIZE_DEFAULT,
+  filters: EMPTY_LINE_FILTERS,
+};
 
 /**
  * "Общие закупки": the shared need of every board position marked "Общие",
@@ -33,17 +47,14 @@ import { activeSellerId, compileLineFilter, filterBlocks } from '../../shared/in
  * above is a separate, page-wide control that only keeps matching rows.
  */
 export default function CommonPurchasesPage() {
-  const [mode, setMode] = useState('merged');
+  // Restored context: the mode, the row filters and the page survive a switch to
+  // another tab.
+  const [ui, updateUi] = useUiState('common', COMMON_UI_DEFAULTS);
+  const [mode, setMode] = useState(ui.mode);
   const [view, setView] = useState(null);
   const [products, setProducts] = useState([]);
-  const [filters, setFilters] = useState(EMPTY_LINE_FILTERS);
+  const [filters, setFilters] = useState(ui.filters);
   const [error, setError] = useState(null);
-
-  // Switching between the merged list and the by-board breakdown resets the
-  // filters: the rows behind them change completely.
-  useEffect(() => {
-    setFilters(EMPTY_LINE_FILTERS);
-  }, [mode]);
 
   const load = useCallback(async () => {
     try {
@@ -114,6 +125,38 @@ export default function CommonPurchasesPage() {
     () => filterBlocks(view?.blocks ?? [], filter.match),
     [view, filter],
   );
+
+  // The pagination reacts to this key; a restored page survives the first load.
+  const resetKey = `${mode}:${JSON.stringify(effectiveFilters)}`;
+  const { page, pageSize, setPage, setPageSize } = usePagination(rows, {
+    initialPage: ui.page,
+    initialPageSize: ui.size || PAGE_SIZE_DEFAULT,
+    resetKey,
+  });
+
+  // Switching between the merged list and the by-board breakdown resets the
+  // filters: the rows behind them change completely. Skipped on the first render
+  // so the restored filters are not wiped.
+  const previousMode = useRef(mode);
+  useEffect(() => {
+    if (previousMode.current !== mode) {
+      previousMode.current = mode;
+      setFilters(EMPTY_LINE_FILTERS);
+    }
+  }, [mode]);
+
+  // Persist the screen context so a switch to another tab does not reset it.
+  useEffect(() => {
+    updateUi({ mode });
+  }, [mode, updateUi]);
+
+  useEffect(() => {
+    updateUi({ filters });
+  }, [filters, updateUi]);
+
+  useEffect(() => {
+    updateUi({ page, size: pageSize });
+  }, [page, pageSize, updateUi]);
 
   const columns = [
     { id: 'value', label: 'Наименование' },
@@ -237,7 +280,11 @@ export default function CommonPurchasesPage() {
           <LinesTable
             blocks={visibleBlocks}
             columns={columns}
-            resetKey={`${mode}:${JSON.stringify(filters)}`}
+            resetKey={resetKey}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
           />
           <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>
             <Stack direction="row" justifyContent="flex-end" spacing={4}>
