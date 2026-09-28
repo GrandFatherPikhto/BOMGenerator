@@ -74,20 +74,6 @@ export default function CommonPurchasesPage() {
         .map((block) => block.line),
     [view],
   );
-  const activeSeller = useMemo(
-    () => activeSellerId(sellerOptions, filters.seller),
-    [sellerOptions, filters.seller],
-  );
-  const effectiveFilters = useMemo(
-    () => (activeSeller === filters.seller ? filters : { ...filters, seller: '' }),
-    [filters, activeSeller],
-  );
-
-  const filter = useMemo(() => compileLineFilter(effectiveFilters), [effectiveFilters]);
-  const visibleBlocks = useMemo(
-    () => filterBlocks(view?.blocks ?? [], filter.match),
-    [view, filter],
-  );
 
   const productMap = useMemo(
     () => new Map(products.map((product) => [product.id, product])),
@@ -112,6 +98,21 @@ export default function CommonPurchasesPage() {
       .map(([id, name]) => ({ id, name }))
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [rows, productMap]);
+
+  const activeSeller = useMemo(
+    () => activeSellerId(sellerOptions, filters.seller),
+    [sellerOptions, filters.seller],
+  );
+  const effectiveFilters = useMemo(
+    () => (activeSeller === filters.seller ? filters : { ...filters, seller: '' }),
+    [filters, activeSeller],
+  );
+
+  const filter = useMemo(() => compileLineFilter(effectiveFilters), [effectiveFilters]);
+  const visibleBlocks = useMemo(
+    () => filterBlocks(view?.blocks ?? [], filter.match),
+    [view, filter],
+  );
 
   const columns = [
     { id: 'value', label: 'Наименование' },
