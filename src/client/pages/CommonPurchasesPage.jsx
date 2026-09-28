@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 
 import { api } from '../lib/apiClient.js';
+import { sellerOptionsFromProducts } from '../lib/sellerOptions.js';
 import {
   LinesTable,
   PacksCell,
@@ -89,22 +90,12 @@ export default function CommonPurchasesPage() {
   const productOf = (row) =>
     row.productId ? productMap.get(row.productId) ?? null : null;
 
-  // Only the sellers actually used by the common purchases are offered.
-  const sellerOptions = useMemo(() => {
-    const map = new Map();
-    for (const row of rows) {
-      if (!row.sellerId || map.has(row.sellerId)) {
-        continue;
-      }
-      const name = productMap.get(row.productId)?.sellerName;
-      if (name) {
-        map.set(row.sellerId, name);
-      }
-    }
-    return [...map.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((left, right) => left.name.localeCompare(right.name));
-  }, [rows, productMap]);
+  // Every shop with products in the catalogue is offered, so a seller can be
+  // chosen before any row has a product assigned.
+  const sellerOptions = useMemo(
+    () => sellerOptionsFromProducts(products),
+    [products],
+  );
 
   const activeSeller = useMemo(
     () => activeSellerId(sellerOptions, filters.seller),

@@ -14,6 +14,7 @@ import {
   SellerCell,
   ShippingCell,
 } from './LinesTable.jsx';
+import { sellerOptionsFromProducts } from '../lib/sellerOptions.js';
 import LineFiltersBar from './LineFiltersBar.jsx';
 import ReferenceDesignators from './ReferenceDesignators.jsx';
 
@@ -67,22 +68,12 @@ export default function PurchaseBoardView({
   // navigation since the component remounts.
   const [sellerOverrides, setSellerOverrides] = useState({});
 
-  // Only the sellers actually used by this board are offered in the filter.
-  const sellerOptions = useMemo(() => {
-    const map = new Map();
-    for (const row of rows) {
-      if (!row.sellerId || map.has(row.sellerId)) {
-        continue;
-      }
-      const name = productMap.get(row.productId)?.sellerName;
-      if (name) {
-        map.set(row.sellerId, name);
-      }
-    }
-    return [...map.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((left, right) => left.name.localeCompare(right.name));
-  }, [rows, productMap]);
+  // Every shop with products in the catalogue is offered, so a seller can be
+  // chosen before any row has a product assigned.
+  const sellerOptions = useMemo(
+    () => sellerOptionsFromProducts(products),
+    [products],
+  );
 
   // A seller persisted from another board/tab is ignored: it neither filters the
   // rows nor narrows the product list here.
