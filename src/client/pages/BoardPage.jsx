@@ -16,15 +16,21 @@ import {
 
 import BomBoardView from '../components/BomBoardView.jsx';
 import ImportDialog from '../components/ImportDialog.jsx';
+import { useUiState } from '../hooks/useUiState.js';
 import { api } from '../lib/apiClient.js';
+
+/** Defaults of the "boards" UI-state section. Module-level for a stable memo. */
+const BOARDS_UI_DEFAULTS = { lastOpenBoardId: '' };
 
 /**
  * Read-only BOM of one board (opened from the "Платы" list). Purchase data and
- * editing live on the "Закупки" tab.
+ * editing live on the "Закупки" tab. Opening a board remembers it so the
+ * "Платы" tab returns here.
  */
 export default function BoardPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [, updateUi] = useUiState('boards', BOARDS_UI_DEFAULTS);
   const [view, setView] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -46,6 +52,13 @@ export default function BoardPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Remember the board that was opened last.
+  useEffect(() => {
+    if (id) {
+      updateUi({ lastOpenBoardId: id });
+    }
+  }, [id, updateUi]);
 
   async function saveBoard() {
     try {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 
 import {
@@ -17,12 +17,13 @@ import {
 import AllBoardsPurchasesView from '../components/AllBoardsPurchasesView.jsx';
 import { PAGE_SIZE_DEFAULT } from '../components/LinesTable.jsx';
 import PurchaseBoardView from '../components/PurchaseBoardView.jsx';
+import { useUiState } from '../hooks/useUiState.js';
 import { api } from '../lib/apiClient.js';
 
 /**
- * Read the persisted filters back from the URL. The seller is deliberately NOT
- * persisted: it belongs to one table, so keeping it in the URL made it "leak"
- * onto other boards/tabs where it was never chosen.
+ * Read the persisted filters back from the URL. The seller is not read from the
+ * URL on purpose: it is remembered per board in the persisted UI state instead,
+ * so it never "leaks" onto another board or tab where it was never chosen.
  */
 function readFilters(params) {
   return {
@@ -52,9 +53,33 @@ function filtersToParams(filters) {
 }
 
 /**
+ * Defaults of the "purchases" UI-state section. Module-level on purpose: it is a
+ * dependency of the `useUiState` memo.
+ */
+const PURCHASES_UI_DEFAULTS = {
+  tab: 'boards',
+  boardId: '',
+  page: 0,
+  size: PAGE_SIZE_DEFAULT,
+  filters: {
+    value: '',
+    valueRegex: false,
+    valueCaseSensitive: false,
+    footprint: '',
+    footprintRegex: false,
+    footprintCaseSensitive: false,
+    qtyOp: '',
+    qty: '',
+  },
+  sellerByBoard: {},
+};
+
+/**
  * "Закупки": the purchase table of the selected board ("По платам") or a summary
  * of every enabled board ("Все"). The active tab, board, filters and pagination
- * live in the URL, so they survive tab switches, navigation and edits.
+ * live in the URL, so they survive tab switches, navigation and edits; they are
+ * mirrored into the persisted UI state, so a plain visit to the tab restores
+ * them. The seller is remembered per board there.
  */
 export default function PurchasesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -64,12 +89,14 @@ export default function PurchasesPage() {
   const pageSize = Number(searchParams.get('size')) || PAGE_SIZE_DEFAULT;
   const filters = useMemo(() => readFilters(searchParams), [searchParams]);
 
+  const [ui, updateUi] = useUiState('purchases', PURCHASES_UI_DEFAULTS);
   const [boards, setBoards] = useState([]);
   const [products, setProducts] = useState([]);
   const [view, setView] = useState(null);
   const [allView, setAllView] = useState(null);
   const [count, setCount] = useState(1);
-  // The seller filter is local to the table and never persisted (see readFilters).
+  // The seller belongs to one board: it is kept per board in the UI state, not
+  // in the URL (see readFilters).
   const [seller, setSeller] = useState('');
   const [error, setError] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -105,6 +132,23 @@ export default function PurchasesPage() {
     }
   }, [searchParams, updateParams]);
 
+  // A plain visit (the "Закупки" tab, no parameters) restores the saved context;
+  // an explicit link always wins.
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (hydrated.current || searchParams.toString() !== '') {
+      return;
+    }
+    hydrated.current = true;
+    updateParams({
+      tab: ui.tab === 'all' ? 'all' : '',
+      board: ui.boardId,
+      page: ui.page > 0 ? ui.page : '',
+      size: ui.size === PAGE_SIZE_DEFAULT ? '' : ui.size,
+      ...filtersToParams(ui.filters),
+    });
+  }, [searchParams, ui, updateParams]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -133,6 +177,27 @@ export default function PurchasesPage() {
       updateParams({ board: boards[0].id });
     }
   }, [loaded, tab, boardId, boards, updateParams]);
+
+  // Restore the seller remembered for the selected board.
+  useEffect(() => {
+    if (tab !== 'boards' || !boardId) {
+      return;
+    }
+    setSeller(ui.sellerByBoard[boardId] ?? '');
+  }, [tab, boardId, ui.sellerByBoard]);
+
+  // Mirror the working context into the persisted UI state so a switch to
+  // another tab does not reset it. The seller is stored per board.
+  useEffect(() => {
+    updateUi({
+      tab,
+      boardId,
+      page,
+      size: pageSize,
+      filters,
+      sellerByBoard: tab === 'boards' && boardId ? { [boardId]: seller } : {},
+    });
+  }, [tab, boardId, page, pageSize, filters, seller, updateUi]);
 
   const loadView = useCallback(async () => {
     if (tab === 'all') {
@@ -298,7 +363,6 @@ export default function PurchasesPage() {
               label="Плата"
               value={boardId}
               onChange={(event) => {
-                setSeller('');
                 updateParams({ board: event.target.value, seller: '', page: '' });
               }}
               sx={{ minWidth: 260 }}

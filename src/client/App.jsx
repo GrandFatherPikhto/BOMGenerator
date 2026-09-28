@@ -2,6 +2,7 @@ import { AppBar, Box, Container, Tab, Tabs, Toolbar, Typography } from '@mui/mat
 import { Link as RouterLink, Route, Routes, useLocation } from 'react-router-dom';
 
 import { PAGE_WIDTH, useSettings } from './SettingsContext.jsx';
+import { useUiState } from './hooks/useUiState.js';
 
 import BoardPage from './pages/BoardPage.jsx';
 import BoardsPage from './pages/BoardsPage.jsx';
@@ -22,6 +23,9 @@ const TABS = [
   { label: 'Настройки', value: '/settings', to: '/settings' },
 ];
 
+/** Defaults of the "boards" UI-state section. Module-level for a stable memo. */
+const BOARDS_UI_DEFAULTS = { lastOpenBoardId: '' };
+
 function activeTab(pathname) {
   if (pathname.startsWith('/boards')) {
     return '/';
@@ -34,6 +38,12 @@ export default function App() {
   const current = activeTab(location.pathname);
   const { settings } = useSettings();
   const maxWidth = PAGE_WIDTH[settings?.pageWidth] ?? PAGE_WIDTH.normal;
+  // "Платы" returns to the last board that was opened; the list stays reachable
+  // through the "К списку" button there.
+  const [boardsUi] = useUiState('boards', BOARDS_UI_DEFAULTS);
+  const boardsTabTo = boardsUi.lastOpenBoardId
+    ? `/boards/${boardsUi.lastOpenBoardId}`
+    : '/';
 
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: '#f5f6f8' }}>
@@ -55,7 +65,7 @@ export default function App() {
                 label={tab.label}
                 value={tab.value}
                 component={RouterLink}
-                to={tab.to}
+                to={tab.value === '/' ? boardsTabTo : tab.to}
               />
             ))}
           </Tabs>
