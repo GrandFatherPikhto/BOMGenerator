@@ -5,11 +5,10 @@ KiCad** в рабочую таблицу закупок: платы, прода�
 категоризации и «Общие закупки». Реализован на стеке MERN (MongoDB, Express,
 React, Node).
 
-Это самостоятельный проект. Из исходного Python-инструмента
-([`python/bom_merge.py`](python/bom_merge.py)) перенесены **только алгоритмы
-разбора номинала и категоризации**; всё остальное написано заново. Исходные
-материалы — в [`techdocs/design.md`](techdocs/design.md) и
-[`techdocs/plan-2026-09-27.md`](techdocs/plan-2026-09-27.md).
+Это самостоятельный проект. Из исходного Python-инструмента перенесены **только
+алгоритмы разбора номинала и категоризации**; всё остальное написано заново.
+Исходные материалы и Python-референс лежат в `techdocs/` и `python/` и исключены
+из репозитория. Английская версия — [`README.md`](README.md).
 
 - [Возможности](#возможности)
 - [Требования](#требования)
@@ -189,11 +188,13 @@ npm test
 | [`src/shared/`](src/shared) | Независимый от фреймворков код: парсер номинала, категоризация, сортировка (порт алгоритмов Python) |
 | [`src/server/`](src/server) | Express API, модели Mongoose, сервисы |
 | [`src/client/`](src/client) | React (Vite) интерфейс |
-| [`tests/`](tests) | Наборы тестов Node (общие + API) |
-| [`scripts/`](scripts) | `seed.js`, `acceptance.js` |
+| [`tests/shared/`](tests/shared) | Юнит-тесты доменного модуля (`node:test`) |
+| [`tests/server/`](tests/server) | Юнит-тесты серверных хелперов (`node:test`) |
+| [`tests/api/`](tests/api) | Интеграционные тесты API (нужен MongoDB) |
+| [`tests/client/`](tests/client) | Тесты React-слоя (Vitest + jsdom) |
+| [`scripts/`](scripts) | `seed.js`, `acceptance.js`, `inspect.local.mjs` |
 | [`docs/`](docs) | Архитектура, модель данных, справочник API |
-| [`techdocs/`](techdocs) | Рабочие материалы/примеры (позже уйдёт в `.gitignore`) |
-| [`python/`](python) | Исходный Python-проект (только как эталон) |
+| `techdocs/`, `python/` | Локальные рабочие материалы и исходный Python-проект (вне git) |
 
 ## Решения и `TODO(confirm)`
 
