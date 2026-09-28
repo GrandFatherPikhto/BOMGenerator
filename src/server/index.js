@@ -6,7 +6,6 @@ import { connectDatabase } from './db.js';
 import { isAuthEnabled } from './lib/authConfig.js';
 import { ensureServiceBoard } from './services/boardService.js';
 import { seedDefaults } from './services/categoryService.js';
-import { migrateSellersToProducts } from './services/migrationService.js';
 import { getSettings } from './services/settingsService.js';
 
 const port = Number(process.env.PORT || 3000);
@@ -27,10 +26,9 @@ async function main() {
   await seedDefaults();
   await ensureServiceBoard();
 
-  const migration = await migrateSellersToProducts();
-  if (migration.productsCreated || migration.linesUpdated || migration.overridesUpdated) {
-    console.log('Sellers migrated to products:', migration);
-  }
+  // Data migrations are deliberately NOT run at startup: a bad run must not be
+  // able to damage the data on every restart. Run them explicitly with
+  // `npm run migrate` (see scripts/migrate.js, which supports --dry-run).
 
   // Authentication needs a signing secret; fail fast instead of 401-ing everyone.
   if (isAuthEnabled() && !process.env.SESSION_SECRET) {
