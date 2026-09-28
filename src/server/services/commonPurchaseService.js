@@ -22,25 +22,54 @@ export async function getCommonPurchases(mode = 'merged') {
     throw badRequest(`mode must be one of ${COMMON_MODES.join(', ')}`);
   }
 
-  const [settings, categories, sellers, products, boards, lines, overrides] =
-    await Promise.all([
-      getSettings(),
-      listRuntimeCategories(),
-      Seller.find().lean(),
-      SellerProduct.find().lean(),
-      Board.find().lean(),
-      BomLine.find({ common: true }).lean(),
-      CommonPurchaseOverride.find().lean(),
-    ]);
+  const [settings, categories, boards] = await Promise.all([
+    getSettings(),
+    listRuntimeCategories(),
+    Board.find().lean(),
+  ]);
 
-  const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
-  const productMap = new Map(products.map((product) => [String(product._id), product]));
   // Only boards that are enabled AND marked "in common purchases" contribute.
   const boardMap = new Map(
     boards
       .filter((board) => board.enabled !== false && board.inCommon !== false)
       .map((board) => [String(board._id), board]),
   );
+
+  // Scope the line scan to the participating boards instead of the whole
+  // collection.
+  const boardIds = [...boardMap.keys()];
+  const lines =
+    boardIds.length > 0
+      ? await BomLine.find({ common: true, boardId: { $in: boardIds } }).lean()
+      : [];
+
+  const keys = [...new Set(lines.map((line) => line.matchKey))];
+  const overrides =
+    keys.length > 0
+      ? await CommonPurchaseOverride.find({ matchKey: { $in: keys } }).lean()
+      : [];
+
+  const productIds = [
+    ...new Set(
+      overrides
+        .filter((item) => item.productId)
+        .map((item) => String(item.productId)),
+    ),
+  ];
+  const products =
+    productIds.length > 0
+      ? await SellerProduct.find({ _id: { $in: productIds } }).lean()
+      : [];
+  const sellerIds = [
+    ...new Set(products.map((product) => String(product.sellerId))),
+  ];
+  const sellers =
+    sellerIds.length > 0
+      ? await Seller.find({ _id: { $in: sellerIds } }).lean()
+      : [];
+
+  const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
+  const productMap = new Map(products.map((product) => [String(product._id), product]));
   const overrideMap = new Map(overrides.map((item) => [item.matchKey, item]));
 
   // Aggregate by match key; the quantity already accounts for board.count.

@@ -202,25 +202,50 @@ export async function getBoardView(boardId) {
   if (!board) {
     throw notFound('Board not found');
   }
-  const [
-    settings,
-    categories,
-    lines,
-    sellers,
-    products,
-    boards,
-    commonLines,
-    overrides,
-  ] = await Promise.all([
+  const [settings, categories, lines, boards] = await Promise.all([
     getSettings(),
     listRuntimeCategories(),
     BomLine.find({ boardId: board._id }).lean(),
-    Seller.find().lean(),
-    SellerProduct.find().lean(),
     Board.find().lean(),
-    BomLine.find({ common: true }).lean(),
-    CommonPurchaseOverride.find().lean(),
   ]);
+
+  // A "common" line only matters when this board holds the same match key, so
+  // scope the extra queries to those keys instead of scanning the collection.
+  const keys = [...new Set(lines.map((line) => line.matchKey))];
+  const [commonLines, overrides] = await Promise.all([
+    keys.length > 0
+      ? BomLine.find({ common: true, matchKey: { $in: keys } }).lean()
+      : [],
+    keys.length > 0
+      ? CommonPurchaseOverride.find({ matchKey: { $in: keys } }).lean()
+      : [],
+  ]);
+
+  // Only the products (and their sellers) referenced by this board are needed
+  // to resolve names and costs.
+  const productIds = new Set();
+  for (const line of lines) {
+    if (line.productId) {
+      productIds.add(String(line.productId));
+    }
+  }
+  for (const override of overrides) {
+    if (override.productId) {
+      productIds.add(String(override.productId));
+    }
+  }
+  const products =
+    productIds.size > 0
+      ? await SellerProduct.find({ _id: { $in: [...productIds] } }).lean()
+      : [];
+  const sellerIds = [
+    ...new Set(products.map((product) => String(product.sellerId))),
+  ];
+  const sellers =
+    sellerIds.length > 0
+      ? await Seller.find({ _id: { $in: sellerIds } }).lean()
+      : [];
+
   const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
   const productMap = new Map(products.map((product) => [String(product._id), product]));
 
@@ -275,13 +300,10 @@ export async function getBoardView(boardId) {
  * delivery. "Общие" lines are left to the common-purchases sheet.
  */
 export async function getAllBoardsView() {
-  const [settings, categories, sellers, products, boards, lines] = await Promise.all([
+  const [settings, categories, boards] = await Promise.all([
     getSettings(),
     listRuntimeCategories(),
-    Seller.find().lean(),
-    SellerProduct.find().lean(),
     Board.find().lean(),
-    BomLine.find({ common: { $ne: true } }).lean(),
   ]);
 
   const boardMap = new Map(
@@ -289,6 +311,35 @@ export async function getAllBoardsView() {
       .filter((board) => board.enabled !== false && !board.isService)
       .map((board) => [String(board._id), board]),
   );
+
+  // Only enabled non-service boards contribute; scope the (potentially large)
+  // line scan to their ids.
+  const boardIds = [...boardMap.keys()];
+  const lines =
+    boardIds.length > 0
+      ? await BomLine.find({
+          common: { $ne: true },
+          boardId: { $in: boardIds },
+        }).lean()
+      : [];
+
+  const productIds = [
+    ...new Set(
+      lines.filter((line) => line.productId).map((line) => String(line.productId)),
+    ),
+  ];
+  const products =
+    productIds.length > 0
+      ? await SellerProduct.find({ _id: { $in: productIds } }).lean()
+      : [];
+  const sellerIds = [
+    ...new Set(products.map((product) => String(product.sellerId))),
+  ];
+  const sellers =
+    sellerIds.length > 0
+      ? await Seller.find({ _id: { $in: sellerIds } }).lean()
+      : [];
+
   const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
   const productMap = new Map(products.map((product) => [String(product._id), product]));
 
