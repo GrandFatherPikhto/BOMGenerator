@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 
@@ -11,6 +11,7 @@ import {
   PacksCell,
   ProductCell,
   ProductLabel,
+  SellerCell,
   ShippingCell,
 } from './LinesTable.jsx';
 import LineFiltersBar from './LineFiltersBar.jsx';
@@ -60,6 +61,12 @@ export default function PurchaseBoardView({
     [blocks],
   );
 
+  // A seller picked per row (before a matching product is chosen, or to narrow
+  // the product list away from what the row currently has). Not persisted by
+  // itself — see SellerCell's doc comment. Keyed by line id, cleared on
+  // navigation since the component remounts.
+  const [sellerOverrides, setSellerOverrides] = useState({});
+
   // Only the sellers actually used by this board are offered in the filter.
   const sellerOptions = useMemo(() => {
     const map = new Map();
@@ -83,6 +90,9 @@ export default function PurchaseBoardView({
     () => activeSellerId(sellerOptions, filters.seller),
     [sellerOptions, filters.seller],
   );
+  const rowSeller = (row) =>
+    sellerOverrides[row.id] ?? row.sellerId ?? (activeSeller || '');
+
   const effectiveFilters = useMemo(
     () => (activeSeller === filters.seller ? filters : { ...filters, seller: '' }),
     [filters, activeSeller],
@@ -116,7 +126,21 @@ export default function PurchaseBoardView({
     {
       id: 'seller',
       label: 'Продавец',
-      render: (row) => productOf(row)?.sellerName ?? '',
+      render: (row) =>
+        row.common ? (
+          productOf(row)?.sellerName ?? ''
+        ) : (
+          <SellerCell
+            value={rowSeller(row)}
+            options={sellerOptions}
+            onChange={(sellerId) => {
+              setSellerOverrides((previous) => ({ ...previous, [row.id]: sellerId }));
+              if (row.productId) {
+                patch(row)({ productId: null });
+              }
+            }}
+          />
+        ),
     },
     {
       id: 'product',
@@ -132,7 +156,7 @@ export default function PurchaseBoardView({
           <ProductCell
             row={row}
             products={products}
-            sellerFilter={activeSeller}
+            sellerFilter={rowSeller(row)}
             onChange={patch(row)}
           />
         ),

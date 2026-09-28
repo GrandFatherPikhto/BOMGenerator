@@ -369,6 +369,31 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
   );
 }
 
+/**
+ * Per-row seller picker. Purely a UI narrowing/reset control: picking a seller
+ * here does not persist by itself — the caller is expected to also clear the
+ * row's `productId` (a product belongs to one seller, so the old choice no
+ * longer applies) and to feed the picked id into the neighbouring
+ * `ProductCell`'s `sellerFilter` so its option list narrows to that seller.
+ */
+export function SellerCell({ value, options, onChange }) {
+  const selected = value ? options.find((option) => option.id === value) ?? null : null;
+  return (
+    <Autocomplete
+      size="small"
+      options={options}
+      value={selected}
+      onChange={(event, option) => onChange(option ? option.id : null)}
+      getOptionLabel={(option) => option.name}
+      isOptionEqualToValue={(option, val) => option.id === val.id}
+      renderInput={(params) => (
+        <TextField {...params} variant="standard" placeholder="—" />
+      )}
+      sx={{ minWidth: 180 }}
+    />
+  );
+}
+
 /** Read-only product name plus a link — used for the "Общие" rows. */
 export function ProductLabel({ product }) {
   if (!product) {

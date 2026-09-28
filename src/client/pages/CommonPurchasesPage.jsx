@@ -16,6 +16,7 @@ import {
   LinesTable,
   PacksCell,
   ProductCell,
+  SellerCell,
   ShippingCell,
 } from '../components/LinesTable.jsx';
 import LineFiltersBar, { EMPTY_LINE_FILTERS } from '../components/LineFiltersBar.jsx';
@@ -25,8 +26,10 @@ import { activeSellerId, compileLineFilter, filterBlocks } from '../../shared/in
 /**
  * "Общие закупки": the shared need of every board position marked "Общие",
  * aggregated by match key. Here (and only here) the product, packages and
- * shipping of those rows are chosen; the seller follows from the product, and
- * the "Продавец" filter keeps only its rows (and narrows the product list).
+ * shipping of those rows are chosen. A row's seller can be picked directly
+ * (narrows the "Товар" list and clears the current product, see SellerCell)
+ * or left to follow the chosen product; the "Продавец" filter in the bar
+ * above is a separate, page-wide control that only keeps matching rows.
  */
 export default function CommonPurchasesPage() {
   const [mode, setMode] = useState('merged');
@@ -75,6 +78,10 @@ export default function CommonPurchasesPage() {
     [view],
   );
 
+  // A seller picked per row, same purpose as on the board/all-boards purchase
+  // tables — see SellerCell's doc comment. Keyed by matchKey.
+  const [sellerOverrides, setSellerOverrides] = useState({});
+
   const productMap = useMemo(
     () => new Map(products.map((product) => [product.id, product])),
     [products],
@@ -103,6 +110,9 @@ export default function CommonPurchasesPage() {
     () => activeSellerId(sellerOptions, filters.seller),
     [sellerOptions, filters.seller],
   );
+  const rowSeller = (row) =>
+    sellerOverrides[row.matchKey] ?? row.sellerId ?? (activeSeller || '');
+
   const effectiveFilters = useMemo(
     () => (activeSeller === filters.seller ? filters : { ...filters, seller: '' }),
     [filters, activeSeller],
@@ -135,7 +145,18 @@ export default function CommonPurchasesPage() {
     {
       id: 'seller',
       label: 'Продавец',
-      render: (row) => productOf(row)?.sellerName ?? '',
+      render: (row) => (
+        <SellerCell
+          value={rowSeller(row)}
+          options={sellerOptions}
+          onChange={(sellerId) => {
+            setSellerOverrides((previous) => ({ ...previous, [row.matchKey]: sellerId }));
+            if (row.productId) {
+              patch(row, { productId: null });
+            }
+          }}
+        />
+      ),
     },
     {
       id: 'product',
@@ -144,7 +165,7 @@ export default function CommonPurchasesPage() {
         <ProductCell
           row={row}
           products={products}
-          sellerFilter={activeSeller}
+          sellerFilter={rowSeller(row)}
           onChange={(c) => patch(row, c)}
         />
       ),

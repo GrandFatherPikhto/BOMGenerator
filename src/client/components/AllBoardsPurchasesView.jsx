@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ import {
   LinesTable,
   PacksCell,
   ProductCell,
+  SellerCell,
   ShippingCell,
 } from './LinesTable.jsx';
 import LineFiltersBar from './LineFiltersBar.jsx';
@@ -56,6 +57,13 @@ export default function AllBoardsPurchasesView({
     [view],
   );
 
+  // A seller picked per row, same purpose as in PurchaseBoardView — see
+  // SellerCell's doc comment. Keyed by matchKey: a row here represents every
+  // line across boards that shares it, and that identity survives a product
+  // change (the id of the "Все" row itself does not — it is re-grouped by
+  // matchKey + productId on every reload).
+  const [sellerOverrides, setSellerOverrides] = useState({});
+
   // Only the sellers actually used across the shown boards are offered.
   const sellerOptions = useMemo(() => {
     const map = new Map();
@@ -79,6 +87,9 @@ export default function AllBoardsPurchasesView({
     () => activeSellerId(sellerOptions, filters.seller),
     [sellerOptions, filters.seller],
   );
+  const rowSeller = (row) =>
+    sellerOverrides[row.matchKey] ?? row.sellerId ?? (activeSeller || '');
+
   const effectiveFilters = useMemo(
     () => (activeSeller === filters.seller ? filters : { ...filters, seller: '' }),
     [filters, activeSeller],
@@ -126,7 +137,18 @@ export default function AllBoardsPurchasesView({
     {
       id: 'seller',
       label: 'Продавец',
-      render: (row) => productOf(row)?.sellerName ?? '',
+      render: (row) => (
+        <SellerCell
+          value={rowSeller(row)}
+          options={sellerOptions}
+          onChange={(sellerId) => {
+            setSellerOverrides((previous) => ({ ...previous, [row.matchKey]: sellerId }));
+            if (row.productId) {
+              patch(row)({ productId: null });
+            }
+          }}
+        />
+      ),
     },
     {
       id: 'product',
@@ -135,7 +157,7 @@ export default function AllBoardsPurchasesView({
         <ProductCell
           row={row}
           products={products}
-          sellerFilter={activeSeller}
+          sellerFilter={rowSeller(row)}
           onChange={patch(row)}
         />
       ),
