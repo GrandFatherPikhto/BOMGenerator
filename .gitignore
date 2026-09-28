@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 .env
+auth.json
 *.log
 .DS_Store
 

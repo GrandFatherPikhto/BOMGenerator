@@ -1,7 +1,8 @@
-import { AppBar, Box, Container, Tab, Tabs, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, Button, Container, Tab, Tabs, Toolbar, Typography } from '@mui/material';
 import { Link as RouterLink, Route, Routes, useLocation } from 'react-router-dom';
 
 import { PAGE_WIDTH, useSettings } from './SettingsContext.jsx';
+import { useAuth } from './AuthContext.jsx';
 import { useUiState } from './hooks/useUiState.js';
 
 import BoardPage from './pages/BoardPage.jsx';
@@ -37,6 +38,7 @@ export default function App() {
   const location = useLocation();
   const current = activeTab(location.pathname);
   const { settings } = useSettings();
+  const { authEnabled, username, logout } = useAuth();
   const maxWidth = PAGE_WIDTH[settings?.pageWidth] ?? PAGE_WIDTH.normal;
   // "Платы" returns to the last board that was opened; the list stays reachable
   // through the "К списку" button there.
@@ -69,6 +71,17 @@ export default function App() {
               />
             ))}
           </Tabs>
+          <Box sx={{ flexGrow: 1 }} />
+          {authEnabled && username && (
+            <>
+              <Typography variant="body2" sx={{ mr: 1.5, opacity: 0.9 }}>
+                {username}
+              </Typography>
+              <Button color="inherit" size="small" onClick={logout}>
+                Выйти
+              </Button>
+            </>
+          )}
         </Toolbar>
       </AppBar>
 

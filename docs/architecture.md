@@ -111,6 +111,23 @@ product/packages/shipping overrides are stored, in `CommonPurchaseOverride`, key
 boards. Two presentation modes are supported: `merged` (one "нужно всего"
 row) and `by_board` (an extra column per contributing board).
 
+## Authentication
+
+Optional and dependency-free. `auth.json` holds scrypt password hashes
+([`password.js`](../src/server/lib/password.js)); [`authConfig`](../src/server/lib/authConfig.js)
+re-reads it when its mtime changes, so an edit applies without a restart. When
+the file is missing or has no usable users, `requireAuth` is a no-op and
+`currentUserId` falls back to the implicit `default` user, which keeps local
+development and the existing API tests working.
+
+Sessions are stateless: a HMAC-SHA256 signed cookie
+([`session.js`](../src/server/lib/session.js)) carrying the user name and an
+expiry, signed with `SESSION_SECRET` (the process refuses to start when auth is
+enabled without it). That is enough for a couple of people; the documented
+trade-off is that a single session cannot be revoked — rotating the secret logs
+everybody out. Because everything is scoped by `currentUserId`, the UI state
+becomes per-account automatically, without any schema or client change.
+
 ## Startup
 
 [`src/server/index.js`](../src/server/index.js) connects to MongoDB, ensures

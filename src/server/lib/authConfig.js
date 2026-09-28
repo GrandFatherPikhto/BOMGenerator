@@ -26,7 +26,7 @@ function parseUsers(raw, file) {
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
-    throw new Error(`${file} is not valid JSON: ${error.message}`);
+    throw new Error(`${file} is not valid JSON: ${error.message}`, { cause: error });
   }
   const users = Array.isArray(parsed) ? parsed : parsed?.users;
   if (!Array.isArray(users)) {

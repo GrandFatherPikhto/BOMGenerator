@@ -23,12 +23,23 @@ async function request(path, { method = 'GET', body, isForm = false } = {}) {
     const error = new Error(data?.error || `HTTP ${response.status}`);
     error.status = response.status;
     error.details = data?.details;
+    // Any 401 means the session is gone; the auth layer listens for this and
+    // shows the login screen again.
+    if (response.status === 401 && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('bom:unauthorized'));
+    }
     throw error;
   }
   return data;
 }
 
 export const api = {
+  auth: {
+    me: () => request('/auth/me'),
+    login: (username, password) =>
+      request('/auth/login', { method: 'POST', body: { username, password } }),
+    logout: () => request('/auth/logout', { method: 'POST' }),
+  },
   boards: {
     list: () => request('/boards'),
     get: (id) => request(`/boards/${id}`),

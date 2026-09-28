@@ -59,6 +59,43 @@ describe('apiClient', () => {
     });
   });
 
+  it('reads the auth state', async () => {
+    global.fetch.mockResolvedValue(
+      jsonResponse({ authEnabled: true, username: 'denis' }),
+    );
+    const result = await api.auth.me();
+    expect(global.fetch).toHaveBeenCalledWith('/api/auth/me', {
+      method: 'GET',
+      headers: {},
+    });
+    expect(result.username).toBe('denis');
+  });
+
+  it('posts the login credentials', async () => {
+    global.fetch.mockResolvedValue(jsonResponse({ username: 'denis' }));
+    await api.auth.login('denis', 'pw');
+    expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'denis', password: 'pw' }),
+    });
+  });
+
+  it('emits bom:unauthorized on a 401 so the app can show the login screen', async () => {
+    const listener = vi.fn();
+    window.addEventListener('bom:unauthorized', listener);
+    global.fetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: 'Authentication required' }),
+    });
+
+    await expect(api.boards.list()).rejects.toMatchObject({ status: 401 });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    window.removeEventListener('bom:unauthorized', listener);
+  });
+
   it('falls back to an HTTP status message when the body has no error', async () => {
     global.fetch.mockResolvedValue({ ok: false, status: 500, text: async () => '' });
     await expect(api.settings.get()).rejects.toThrow('HTTP 500');

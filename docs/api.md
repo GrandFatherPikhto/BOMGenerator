@@ -3,6 +3,25 @@
 Base URL: `/api`. JSON everywhere; import uses `multipart/form-data`. Errors
 return `{ "error": "...", "details": [...] }` with an appropriate status code.
 
+## Authentication
+
+Optional and off by default. Users live in `auth.json` (`AUTH_FILE`), a file of
+scrypt password hashes; when it is missing or has no users the API is open and
+every request belongs to the implicit `default` user.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/auth/me` | `{ authEnabled, username }` — always `200` |
+| `POST` | `/auth/login` | `{ username, password }` → `200 { username }` + a signed `bom_session` cookie, else `401` |
+| `POST` | `/auth/logout` | `204`, clears the cookie |
+
+With users configured, every `/api/*` route except `/api/health` and
+`/api/auth/*` requires the session cookie. Failed logins are limited in memory
+(10 per 5 minutes per address).
+
+Generate a hash with `npm run auth:hash` (asks for the user name and password)
+and paste the printed object into the `users` array of `auth.json`.
+
 ## Boards
 
 | Method | Path | Description |
