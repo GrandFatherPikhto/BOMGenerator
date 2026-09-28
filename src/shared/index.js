@@ -46,3 +46,13 @@ export {
   NAME_MODES,
   FOOTPRINT_MODES,
 } from './constants.js';
+
+export {
+  UI_STATE_VERSION,
+  UI_STATE_SECTIONS,
+  normalizeSections,
+  normalizeUiState,
+  deepMerge,
+  mergeSections,
+  readSection,
+} from './uiState.js';
