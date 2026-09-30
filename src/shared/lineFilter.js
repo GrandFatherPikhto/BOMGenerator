@@ -12,6 +12,16 @@
 export const QTY_OPERATORS = ['gt', 'lt', 'eq'];
 
 /**
+ * Row-mode selector of a purchase table (the combobox in the filter bar):
+ * - `all` — every row, including "Не закупается" and "Общие";
+ * - `notPurchased` — only the positions flagged "Не закупается";
+ * - `unfilled` — not "Не закупается", not "Общие" and with no seller (the
+ *   seller comes from the chosen product, so this means "no product chosen");
+ * - `common` — only the positions flagged "Общие" (the board table only).
+ */
+export const ROW_MODES = ['all', 'notPurchased', 'unfilled', 'common'];
+
+/**
  * Compile one text condition.
  *
  * Returns `{ active, error, match(text) }`:
@@ -98,6 +108,24 @@ export function activeSellerId(sellerOptions, sellerId) {
 }
 
 /**
+ * Does a row pass the row-mode selector? See `ROW_MODES` for the meaning of
+ * each mode; an unknown mode behaves like `all` (no narrowing).
+ */
+function matchesRowMode(rowMode, row) {
+  switch (rowMode) {
+    case 'notPurchased':
+      return Boolean(row?.notPurchased);
+    case 'unfilled':
+      return !row?.notPurchased && !row?.common && !row?.sellerId;
+    case 'common':
+      return Boolean(row?.common);
+    case 'all':
+    default:
+      return true;
+  }
+}
+
+/**
  * Compile the whole filter of a purchase table into
  * `{ active, errors: { value, footprint, qty }, match(row) }`.
  *
@@ -105,8 +133,8 @@ export function activeSellerId(sellerOptions, sellerId) {
  * the row's `totalQty` (the "Итого" / "Нужно всего" column); `seller` keeps only
  * the rows bought from that seller (which positions it supplies).
  *
- * Rows with `notPurchased` ("Не закупается") are hidden by default and shown
- * only when `showNotPurchased` is set — the toggle in the filter bar.
+ * `rowMode` is the row-mode combobox: `all` (default) shows every row, the other
+ * modes narrow the table to the positions that need attention (see `ROW_MODES`).
  */
 export function compileLineFilter({
   value = '',
@@ -118,7 +146,7 @@ export function compileLineFilter({
   qtyOp = '',
   qty = '',
   seller = '',
-  showNotPurchased = false,
+  rowMode = 'all',
 } = {}) {
   const valueFilter = compileTextMatch(value, {
     regex: valueRegex,
@@ -133,6 +161,7 @@ export function compileLineFilter({
 
   return {
     active:
+      rowMode !== 'all' ||
       valueFilter.active ||
       footprintFilter.active ||
       qtyFilter.active ||
@@ -143,7 +172,7 @@ export function compileLineFilter({
       qty: qtyFilter.error,
     },
     match: (row) => {
-      if (!showNotPurchased && row?.notPurchased) {
+      if (!matchesRowMode(rowMode, row)) {
         return false;
       }
       if (valueFilter.match && !valueFilter.match(row?.value)) {

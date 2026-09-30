@@ -3,7 +3,7 @@
 // (reading a section and merging optimistic patches), so both sides agree on the
 // stored shape, the versioning and the "drop the junk" rules.
 import { COMMON_MODES, PRODUCT_PICKER_COLUMNS } from './constants.js';
-import { QTY_OPERATORS } from './lineFilter.js';
+import { QTY_OPERATORS, ROW_MODES } from './lineFilter.js';
 
 /** Bump when the stored shape changes, so older documents can be migrated. */
 export const UI_STATE_VERSION = 1;
@@ -28,7 +28,6 @@ const LINE_FILTER_BOOL_KEYS = [
   'valueCaseSensitive',
   'footprintRegex',
   'footprintCaseSensitive',
-  'showNotPurchased',
 ];
 
 /** A plain `{}` (not an array, not null, not a class instance). */
@@ -91,6 +90,10 @@ function normalizeLineFilters(raw, { withSeller = false } = {}) {
   const qtyOp = asEnum(raw.qtyOp, QTY_OPS);
   if (qtyOp !== undefined) {
     out.qtyOp = qtyOp;
+  }
+  const rowMode = asEnum(raw.rowMode, ROW_MODES);
+  if (rowMode !== undefined) {
+    out.rowMode = rowMode;
   }
   return out;
 }

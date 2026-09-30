@@ -182,21 +182,50 @@ test('filterBlocks without a matcher returns the input unchanged', () => {
   assert.equal(filterBlocks(blocks, null), blocks);
 });
 
-test('"не закупается" rows are hidden unless showNotPurchased is set', () => {
+test('the row mode narrows the table to the positions that need attention', () => {
   const rows = [
-    { value: 'Bought', notPurchased: false },
-    { value: 'Skipped', notPurchased: true },
+    { value: 'Bought', notPurchased: false, common: false, productId: 'p1', sellerId: 's1' },
+    { value: 'Skipped', notPurchased: true, common: false, productId: null, sellerId: null },
+    { value: 'NoProduct', notPurchased: false, common: false, productId: null, sellerId: null },
+    { value: 'Common', notPurchased: false, common: true, productId: null, sellerId: null },
     { value: 'Legacy' },
   ];
+  const names = (filter) => rows.filter(filter.match).map((row) => row.value);
 
-  // Hidden by default (also for rows of an older shape without the field).
-  const hidden = compileLineFilter({});
-  assert.deepEqual(rows.filter(hidden.match).map((row) => row.value), ['Bought', 'Legacy']);
-
-  const shown = compileLineFilter({ showNotPurchased: true });
-  assert.deepEqual(rows.filter(shown.match).map((row) => row.value), [
+  // "all" (the default) shows every row, including the legacy shape.
+  assert.deepEqual(names(compileLineFilter({})), [
     'Bought',
     'Skipped',
+    'NoProduct',
+    'Common',
     'Legacy',
   ]);
+  assert.deepEqual(names(compileLineFilter({ rowMode: 'all' })), [
+    'Bought',
+    'Skipped',
+    'NoProduct',
+    'Common',
+    'Legacy',
+  ]);
+
+  // "Не закупается" keeps only the flagged positions.
+  assert.deepEqual(names(compileLineFilter({ rowMode: 'notPurchased' })), ['Skipped']);
+
+  // "Не заполнено" keeps the rows with no seller that are neither "Не закупается"
+  // nor "Общие" (a legacy row without the flags counts as unfilled too).
+  assert.deepEqual(names(compileLineFilter({ rowMode: 'unfilled' })), [
+    'NoProduct',
+    'Legacy',
+  ]);
+
+  // "Только общие" keeps only the "Общие" positions.
+  assert.deepEqual(names(compileLineFilter({ rowMode: 'common' })), ['Common']);
+});
+
+test('any row mode other than "all" marks the filter as active', () => {
+  assert.equal(compileLineFilter({}).active, false);
+  assert.equal(compileLineFilter({ rowMode: 'all' }).active, false);
+  assert.equal(compileLineFilter({ rowMode: 'unfilled' }).active, true);
+  assert.equal(compileLineFilter({ rowMode: 'notPurchased' }).active, true);
+  assert.equal(compileLineFilter({ rowMode: 'common' }).active, true);
 });

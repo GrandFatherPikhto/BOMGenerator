@@ -125,3 +125,19 @@ test('readSection returns a copy of the defaults when nothing is stored', () => 
   assert.deepEqual(state, defaults);
   assert.notEqual(state, defaults);
 });
+
+test('normalizeSections keeps a valid row mode and drops an unknown one', () => {
+  assert.deepEqual(
+    normalizeSections({ purchases: { filters: { rowMode: 'unfilled' } } }),
+    { purchases: { filters: { rowMode: 'unfilled' } } },
+  );
+  // An unknown mode (and the old boolean flag) is not part of the shape.
+  assert.deepEqual(
+    normalizeSections({ purchases: { filters: { rowMode: 'sideways' } } }),
+    { purchases: { filters: {} } },
+  );
+  assert.deepEqual(
+    normalizeSections({ common: { filters: { showNotPurchased: true } } }),
+    { common: { filters: {} } },
+  );
+});

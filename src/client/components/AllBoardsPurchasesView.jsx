@@ -16,7 +16,7 @@ import {
   SellerCell,
   ShippingCell,
 } from './LinesTable.jsx';
-import LineFiltersBar from './LineFiltersBar.jsx';
+import LineFiltersBar, { ROW_MODES_WITHOUT_COMMON } from './LineFiltersBar.jsx';
 
 // Rows that share a component but come from different sources are highlighted:
 // a hint that unifying the source saves on delivery.
@@ -206,6 +206,7 @@ export default function AllBoardsPurchasesView({
         filters={effectiveFilters}
         onChange={onFiltersChange}
         sellerOptions={sellerOptions}
+        rowModes={ROW_MODES_WITHOUT_COMMON}
       />
 
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>

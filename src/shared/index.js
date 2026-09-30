@@ -30,6 +30,7 @@ export {
 
 export {
   QTY_OPERATORS,
+  ROW_MODES,
   compileTextMatch,
   compileLineFilter,
   filterBlocks,

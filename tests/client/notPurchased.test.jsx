@@ -1,17 +1,18 @@
-// "Не закупается": the rows are hidden by default in the purchase table and
-// shown again through the filter-bar toggle.
+// Row-mode combobox of the purchase tables: "Все" shows every row, the other
+// modes narrow the table to the positions that need attention.
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import LineFiltersBar, {
   EMPTY_LINE_FILTERS,
+  ROW_MODES_WITHOUT_COMMON,
 } from '../../src/client/components/LineFiltersBar.jsx';
 import PurchaseBoardView from '../../src/client/components/PurchaseBoardView.jsx';
 
 const board = { id: 'b1', name: 'Board', count: 1 };
 const totals = { cost: 0, shippingCost: 0 };
 
-function line(id, value, notPurchased) {
+function line(id, value, { notPurchased = false, common = false, productId = null } = {}) {
   return {
     id,
     reference: '',
@@ -19,9 +20,9 @@ function line(id, value, notPurchased) {
     value,
     footprint: 'F',
     matchKey: id,
-    productId: null,
-    sellerId: null,
-    common: false,
+    productId,
+    sellerId: productId ? 's1' : null,
+    common,
     notPurchased,
     shippingCost: null,
     shippingOverride: null,
@@ -36,8 +37,10 @@ function line(id, value, notPurchased) {
 
 const blocks = [
   { kind: 'category', name: 'Прочее' },
-  { kind: 'line', line: line('1', 'Bought', false) },
-  { kind: 'line', line: line('2', 'Skipped', true) },
+  { kind: 'line', line: line('1', 'Bought', { productId: 'p1' }) },
+  { kind: 'line', line: line('2', 'NoProduct') },
+  { kind: 'line', line: line('3', 'Skipped', { notPurchased: true }) },
+  { kind: 'line', line: line('4', 'Common', { common: true }) },
 ];
 
 function view(filters) {
@@ -58,39 +61,96 @@ function view(filters) {
   );
 }
 
-describe('"Не закупается"', () => {
-  it('hides the rows by default and shows them when the toggle is on', () => {
-    const { rerender } = render(view({ ...EMPTY_LINE_FILTERS }));
+describe('Режимы строк', () => {
+  it('«Все» показывает все строки, включая «Не закупается» и «Общие»', () => {
+    render(view({ ...EMPTY_LINE_FILTERS }));
 
     expect(screen.getByText('Bought')).toBeTruthy();
-    expect(screen.queryByText('Skipped')).toBeNull();
-
-    rerender(view({ ...EMPTY_LINE_FILTERS, showNotPurchased: true }));
+    expect(screen.getByText('NoProduct')).toBeTruthy();
     expect(screen.getByText('Skipped')).toBeTruthy();
+    expect(screen.getByText('Common')).toBeTruthy();
   });
 
-  it('blocks the seller and product pickers of a not purchased row', () => {
-    render(view({ ...EMPTY_LINE_FILTERS, showNotPurchased: true }));
+  it('«Не закупается» оставляет только отмеченные строки', () => {
+    render(view({ ...EMPTY_LINE_FILTERS, rowMode: 'notPurchased' }));
 
-    // Two rows (Bought + Skipped) with a seller and a product picker each.
+    expect(screen.getByText('Skipped')).toBeTruthy();
+    expect(screen.queryByText('Bought')).toBeNull();
+    expect(screen.queryByText('NoProduct')).toBeNull();
+    expect(screen.queryByText('Common')).toBeNull();
+  });
+
+  it('«Не заполнено» оставляет только строки без товара', () => {
+    render(view({ ...EMPTY_LINE_FILTERS, rowMode: 'unfilled' }));
+
+    expect(screen.getByText('NoProduct')).toBeTruthy();
+    expect(screen.queryByText('Bought')).toBeNull();
+    expect(screen.queryByText('Skipped')).toBeNull();
+    expect(screen.queryByText('Common')).toBeNull();
+  });
+
+  it('«Только общие» оставляет только строки «Общие»', () => {
+    render(view({ ...EMPTY_LINE_FILTERS, rowMode: 'common' }));
+
+    expect(screen.getByText('Common')).toBeTruthy();
+    expect(screen.queryByText('Bought')).toBeNull();
+    expect(screen.queryByText('NoProduct')).toBeNull();
+    expect(screen.queryByText('Skipped')).toBeNull();
+  });
+
+  it('блокирует выбор продавца и товара у строки «Не закупается»', () => {
+    render(view({ ...EMPTY_LINE_FILTERS, rowMode: 'notPurchased' }));
+
     const pickers = screen.getAllByPlaceholderText('—');
-    expect(pickers).toHaveLength(4);
-    // Only the two pickers of the "Skipped" row are disabled.
-    expect(pickers.filter((element) => element.disabled)).toHaveLength(2);
+    expect(pickers.length).toBeGreaterThan(0);
+    expect(pickers.every((element) => element.disabled)).toBe(true);
+  });
+});
+
+describe('Комбобокс режимов', () => {
+  it('предлагает «Только общие» там, где есть флаг «Общие»', () => {
+    render(
+      <LineFiltersBar
+        rows={[]}
+        filters={{ ...EMPTY_LINE_FILTERS }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByLabelText('Строки'));
+    expect(screen.getByRole('option', { name: 'Все' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Не закупается' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Не заполнено' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Только общие' })).toBeTruthy();
   });
 
-  it('the filter bar reports the toggle', () => {
+  it('не предлагает «Только общие» на листах без этого флага', () => {
+    render(
+      <LineFiltersBar
+        rows={[]}
+        filters={{ ...EMPTY_LINE_FILTERS }}
+        onChange={vi.fn()}
+        rowModes={ROW_MODES_WITHOUT_COMMON}
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByLabelText('Строки'));
+    expect(screen.getByRole('option', { name: 'Не заполнено' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Только общие' })).toBeNull();
+  });
+
+  it('сообщает выбранный режим через onChange', () => {
     const onChange = vi.fn();
     render(
       <LineFiltersBar
         rows={[]}
         filters={{ ...EMPTY_LINE_FILTERS }}
         onChange={onChange}
-        sellerOptions={[]}
       />,
     );
 
-    fireEvent.click(screen.getByLabelText('Показывать не закупаемые'));
-    expect(onChange).toHaveBeenCalledWith({ showNotPurchased: true });
+    fireEvent.mouseDown(screen.getByLabelText('Строки'));
+    fireEvent.click(screen.getByRole('option', { name: 'Не заполнено' }));
+    expect(onChange).toHaveBeenCalledWith({ rowMode: 'unfilled' });
   });
 });

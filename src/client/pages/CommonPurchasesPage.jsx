@@ -22,7 +22,10 @@ import {
   SellerCell,
   ShippingCell,
 } from '../components/LinesTable.jsx';
-import LineFiltersBar, { EMPTY_LINE_FILTERS } from '../components/LineFiltersBar.jsx';
+import LineFiltersBar, {
+  EMPTY_LINE_FILTERS,
+  ROW_MODES_WITHOUT_COMMON,
+} from '../components/LineFiltersBar.jsx';
 import { usePagination } from '../hooks/usePagination.js';
 import { useUiState } from '../hooks/useUiState.js';
 import { formatMoney } from '../format.js';
@@ -285,6 +288,7 @@ export default function CommonPurchasesPage() {
               setFilters((previous) => ({ ...previous, ...changes }))
             }
             sellerOptions={sellerOptions}
+            rowModes={ROW_MODES_WITHOUT_COMMON}
           />
 
           <LinesTable

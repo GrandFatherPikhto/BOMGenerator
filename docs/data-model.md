@@ -169,10 +169,13 @@ Rows with `common` are excluded from the board "Итого" — they are bought 
 "Общие закупки" sheet.
 
 Rows with `notPurchased` ("Не закупается") are left out of the totals everywhere
-— the board, the "Все" tab and the common sheet — and are hidden by default
-behind the "Показывать не закупаемые" filter toggle. On the board a line marked
-"Общие" takes the flag from its `CommonPurchaseOverride` (read-only there); on
-the "Все" tab the flag applies to every line behind the row.
+— the board, the "Все" tab and the common sheet. The purchase tables narrow the
+rows with the `rowMode` combobox: `all` (default) shows every row, `notPurchased`
+keeps only the flagged ones, `unfilled` keeps the rows that are neither "Не
+закупается" nor "Общие" and have no seller (no product chosen), and `common` (the
+board table only) keeps only the "Общие" rows. On the board a line marked "Общие"
+takes the flag from its `CommonPurchaseOverride` (read-only there); on the "Все"
+tab the flag applies to every line behind the row.
 
 ## Migration from the previous model
 

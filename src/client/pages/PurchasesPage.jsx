@@ -19,6 +19,12 @@ import { PAGE_SIZE_DEFAULT } from '../components/LinesTable.jsx';
 import PurchaseBoardView from '../components/PurchaseBoardView.jsx';
 import { useUiState } from '../hooks/useUiState.js';
 import { api } from '../lib/apiClient.js';
+import { ROW_MODES } from '../../shared/index.js';
+
+/** A row mode from the URL; a missing or unknown value falls back to "all". */
+function readRowMode(value) {
+  return ROW_MODES.includes(value) ? value : 'all';
+}
 
 /**
  * Read the persisted filters back from the URL. The seller is not read from the
@@ -35,7 +41,7 @@ function readFilters(params) {
     footprintCaseSensitive: params.get('fpCase') === '1',
     qtyOp: params.get('qtyOp') ?? '',
     qty: params.get('qty') ?? '',
-    showNotPurchased: params.get('np') === '1',
+    rowMode: readRowMode(params.get('rows')),
   };
 }
 
@@ -50,7 +56,7 @@ function filtersToParams(filters) {
     fpCase: filters.footprintCaseSensitive ? '1' : '',
     qtyOp: filters.qtyOp,
     qty: filters.qty,
-    np: filters.showNotPurchased ? '1' : '',
+    rows: filters.rowMode && filters.rowMode !== 'all' ? filters.rowMode : '',
   };
 }
 
@@ -72,7 +78,7 @@ const PURCHASES_UI_DEFAULTS = {
     footprintCaseSensitive: false,
     qtyOp: '',
     qty: '',
-    showNotPurchased: false,
+    rowMode: 'all',
   },
   sellerByBoard: {},
 };

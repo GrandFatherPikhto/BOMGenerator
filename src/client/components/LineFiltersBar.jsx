@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 
 import ClearableTextField, { ClearButton } from './ClearableTextField.jsx';
-import { compileTextMatch } from '../../shared/index.js';
+import { compileTextMatch, ROW_MODES } from '../../shared/index.js';
 
 /** Initial (inactive) state of the purchase-table filters. */
 export const EMPTY_LINE_FILTERS = {
@@ -24,8 +24,9 @@ export const EMPTY_LINE_FILTERS = {
   qtyOp: '',
   qty: '',
   seller: '',
-  // "Не закупается" rows are hidden by default; the toggle shows them.
-  showNotPurchased: false,
+  // Row-mode combobox: "all" shows every row (including "Не закупается" and
+  // "Общие"); the other modes narrow the table to the positions to work on.
+  rowMode: 'all',
 };
 
 const QTY_OPTIONS = [
@@ -33,6 +34,20 @@ const QTY_OPTIONS = [
   { value: 'lt', label: 'меньше' },
   { value: 'eq', label: 'равно' },
 ];
+
+/** Labels of the row-mode combobox, keyed by the shared `ROW_MODES` values. */
+const ROW_MODE_LABELS = {
+  all: 'Все',
+  notPurchased: 'Не закупается',
+  unfilled: 'Не заполнено',
+  common: 'Только общие',
+};
+
+/**
+ * Row modes without "Только общие": the "Все" tab already drops the "Общие"
+ * rows and the "Общие закупки" sheet has no "Общие" flag at all.
+ */
+export const ROW_MODES_WITHOUT_COMMON = ROW_MODES.filter((mode) => mode !== 'common');
 
 /** Unique non-empty values, sorted the way a human would read them. */
 function distinctValues(values) {
@@ -196,8 +211,18 @@ function SellerFilterField({ value, onChange, sellerOptions }) {
  * line rows of the current table (used to fill the dropdowns), `filters` is the
  * state object (`EMPTY_LINE_FILTERS` shape), `sellerOptions` lists the sellers
  * used by the current table and `onChange` receives a partial patch to merge.
+ *
+ * `rowModes` lists the values offered by the row-mode combobox; the caller drops
+ * "Только общие" on the tables that have no "Общие" flag (the "Все" tab and the
+ * "Общие закупки" sheet).
  */
-export default function LineFiltersBar({ rows, filters, onChange, sellerOptions = [] }) {
+export default function LineFiltersBar({
+  rows,
+  filters,
+  onChange,
+  sellerOptions = [],
+  rowModes = ROW_MODES,
+}) {
   const valueOptions = useMemo(() => distinctValues(rows.map((row) => row.value)), [rows]);
   const footprintOptions = useMemo(
     () => distinctValues(rows.map((row) => row.footprint)),
@@ -241,17 +266,21 @@ export default function LineFiltersBar({ rows, filters, onChange, sellerOptions 
         onOpChange={(qtyOp) => patch({ qtyOp })}
         onQtyChange={(qty) => patch({ qty })}
       />
-      <FormControlLabel
-        control={
-          <Checkbox
-            size="small"
-            checked={Boolean(filters.showNotPurchased)}
-            onChange={(event) => patch({ showNotPurchased: event.target.checked })}
-          />
-        }
-        label="Показывать не закупаемые"
-        sx={{ mt: 0.5 }}
-      />
+      <TextField
+        select
+        size="small"
+        label="Строки"
+        value={filters.rowMode ?? 'all'}
+        onChange={(event) => patch({ rowMode: event.target.value })}
+        helperText=" "
+        sx={{ minWidth: 180 }}
+      >
+        {rowModes.map((mode) => (
+          <MenuItem key={mode} value={mode}>
+            {ROW_MODE_LABELS[mode] ?? mode}
+          </MenuItem>
+        ))}
+      </TextField>
       <SellerFilterField
         value={filters.seller}
         onChange={(seller) => patch({ seller })}

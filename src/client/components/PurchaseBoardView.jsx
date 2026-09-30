@@ -2,7 +2,12 @@ import { useMemo, useState } from 'react';
 
 import { Paper, Stack, Tooltip, Typography } from '@mui/material';
 
-import { activeSellerId, compileLineFilter, filterBlocks } from '../../shared/index.js';
+import {
+  activeSellerId,
+  compileLineFilter,
+  filterBlocks,
+  ROW_MODES,
+} from '../../shared/index.js';
 import { formatMoney } from '../format.js';
 import {
   CommonCell,
@@ -226,6 +231,7 @@ export default function PurchaseBoardView({
         filters={effectiveFilters}
         onChange={onFiltersChange}
         sellerOptions={sellerOptions}
+        rowModes={ROW_MODES}
       />
 
       <LinesTable
