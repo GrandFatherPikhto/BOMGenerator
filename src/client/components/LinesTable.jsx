@@ -304,7 +304,7 @@ export function ProductLink({ product }) {
  * narrows the list; the free-text search matches the product name/url or the
  * seller name/url, so an offer can be found either way.
  */
-export function ProductCell({ row, products, sellerFilter, onChange }) {
+export function ProductCell({ row, products, sellerFilter, onChange, disabled = false }) {
   const options = sellerFilter
     ? products.filter((product) => product.sellerId === sellerFilter)
     : products;
@@ -329,6 +329,7 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
       <Stack direction="row" spacing={0.5} alignItems="center">
         <Autocomplete
           size="small"
+          disabled={disabled}
           options={options}
           value={selected}
           inputValue={query}
@@ -372,13 +373,16 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
         />
         <ProductLink product={selected} />
         <Tooltip title="Таблица товаров">
-          <IconButton
-            size="small"
-            onClick={() => setPickerOpen(true)}
-            aria-label="Таблица товаров"
-          >
-            <TableChartIcon fontSize="inherit" />
-          </IconButton>
+          <span>
+            <IconButton
+              size="small"
+              disabled={disabled}
+              onClick={() => setPickerOpen(true)}
+              aria-label="Таблица товаров"
+            >
+              <TableChartIcon fontSize="inherit" />
+            </IconButton>
+          </span>
         </Tooltip>
       </Stack>
       <ProductPickerDialog
@@ -400,11 +404,12 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
  * longer applies) and to feed the picked id into the neighbouring
  * `ProductCell`'s `sellerFilter` so its option list narrows to that seller.
  */
-export function SellerCell({ value, options, onChange }) {
+export function SellerCell({ value, options, onChange, disabled = false }) {
   const selected = value ? options.find((option) => option.id === value) ?? null : null;
   return (
     <Autocomplete
       size="small"
+      disabled={disabled}
       options={options}
       value={selected}
       onChange={(event, option) => onChange(option ? option.id : null)}

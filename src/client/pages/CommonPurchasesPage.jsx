@@ -184,6 +184,7 @@ export default function CommonPurchasesPage() {
         <SellerCell
           value={rowSeller(row)}
           options={sellerOptions}
+          disabled={Boolean(row.notPurchased)}
           onChange={(sellerId) => {
             setSellerOverrides((previous) => ({ ...previous, [row.matchKey]: sellerId }));
             if (row.productId) {
@@ -201,6 +202,7 @@ export default function CommonPurchasesPage() {
           row={row}
           products={products}
           sellerFilter={rowSeller(row)}
+          disabled={Boolean(row.notPurchased)}
           onChange={(c) => patch(row, c)}
         />
       ),

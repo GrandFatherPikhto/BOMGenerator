@@ -127,7 +127,12 @@ export default function ManualPage() {
       id: 'product',
       label: 'Товар',
       render: (row) => (
-        <ProductCell row={row} products={products} onChange={(c) => patch(row, c)} />
+        <ProductCell
+          row={row}
+          products={products}
+          disabled={Boolean(row.notPurchased)}
+          onChange={(c) => patch(row, c)}
+        />
       ),
     },
     {

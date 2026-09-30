@@ -140,6 +140,7 @@ export default function PurchaseBoardView({
           <SellerCell
             value={rowSeller(row)}
             options={sellerOptions}
+            disabled={Boolean(row.notPurchased)}
             onChange={(sellerId) => {
               setSellerOverrides((previous) => ({ ...previous, [row.id]: sellerId }));
               if (row.productId) {
@@ -164,6 +165,7 @@ export default function PurchaseBoardView({
             row={row}
             products={products}
             sellerFilter={rowSeller(row)}
+            disabled={Boolean(row.notPurchased)}
             onChange={patch(row)}
           />
         ),

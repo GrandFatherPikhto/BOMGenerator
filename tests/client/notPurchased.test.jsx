@@ -69,6 +69,16 @@ describe('"Не закупается"', () => {
     expect(screen.getByText('Skipped')).toBeTruthy();
   });
 
+  it('blocks the seller and product pickers of a not purchased row', () => {
+    render(view({ ...EMPTY_LINE_FILTERS, showNotPurchased: true }));
+
+    // Two rows (Bought + Skipped) with a seller and a product picker each.
+    const pickers = screen.getAllByPlaceholderText('—');
+    expect(pickers).toHaveLength(4);
+    // Only the two pickers of the "Skipped" row are disabled.
+    expect(pickers.filter((element) => element.disabled)).toHaveLength(2);
+  });
+
   it('the filter bar reports the toggle', () => {
     const onChange = vi.fn();
     render(

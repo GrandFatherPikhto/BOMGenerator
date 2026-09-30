@@ -64,7 +64,8 @@ kept as git-ignored local working documents.
   with the "Показывать не закупаемые" filter toggle. On a board a row marked
   `Общие` takes the flag from the common sheet (read-only there); on the "Все"
   tab it applies to every line behind the row. The export gains a
-  "Не закупается" column.
+  "Не закупается" column, and while the flag is on the seller and product pickers
+  of the row are disabled.
 - **"Докупить"**: a service board for positions bought outside any board.
 - **Common-purchases configurator**: each board has two flags on the "Платы"
   list — "Включено" (participates in the app) and "В общих закупках"
