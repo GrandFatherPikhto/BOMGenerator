@@ -99,4 +99,23 @@ describe('CommonPurchasesPage', () => {
       ),
     );
   });
+
+  it('links to the Excel/CSV export of the current mode', async () => {
+    useUiState.mockReturnValue([
+      { mode: 'by_board', page: 0, size: 20, filters: EMPTY_FILTERS },
+      vi.fn(),
+    ]);
+
+    render(<CommonPurchasesPage />);
+
+    const excel = await screen.findByRole('link', { name: 'Экспорт в Excel' });
+    expect(excel).toHaveAttribute(
+      'href',
+      '/api/common-purchases/export?format=xlsx&mode=by_board',
+    );
+    expect(screen.getByRole('link', { name: 'Экспорт в CSV' })).toHaveAttribute(
+      'href',
+      '/api/common-purchases/export?format=csv&mode=by_board',
+    );
+  });
 });

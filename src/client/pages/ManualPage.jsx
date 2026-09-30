@@ -172,17 +172,35 @@ export default function ManualPage() {
         direction="row"
         justifyContent="space-between"
         alignItems="center"
-        sx={{ mb: 2 }}
+        sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }}
       >
         <Typography variant="h5">Докупить</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setDialogOpen(true)}
-          disabled={!serviceId}
-        >
-          Добавить позицию
-        </Button>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Button
+            variant="outlined"
+            component="a"
+            href={`/api/boards/${serviceId}/export?format=xlsx`}
+            disabled={!serviceId}
+          >
+            Экспорт в Excel
+          </Button>
+          <Button
+            variant="outlined"
+            component="a"
+            href={`/api/boards/${serviceId}/export?format=csv`}
+            disabled={!serviceId}
+          >
+            Экспорт в CSV
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setDialogOpen(true)}
+            disabled={!serviceId}
+          >
+            Добавить позицию
+          </Button>
+        </Stack>
       </Stack>
 
       {error && (

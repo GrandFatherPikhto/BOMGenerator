@@ -7,6 +7,10 @@ import {
   setCommonOverride,
   setCommonOverrideBulk,
 } from '../services/commonPurchaseService.js';
+import {
+  contentDisposition,
+  exportCommonPurchases,
+} from '../services/exportService.js';
 
 const router = Router();
 
@@ -14,6 +18,20 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     res.json(await getCommonPurchases(req.query.mode || 'merged'));
+  }),
+);
+
+// Excel/CSV export of the common-purchases sheet in the current mode.
+router.get(
+  '/export',
+  asyncHandler(async (req, res) => {
+    const { filename, contentType, body } = await exportCommonPurchases(
+      req.query.mode || 'merged',
+      req.query.format || 'xlsx',
+    );
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', contentDisposition(filename));
+    res.send(body);
   }),
 );
 

@@ -89,6 +89,9 @@ The `Продавец` column holds the shop of the chosen product and `URL` its
 `.xlsx` is built with ExcelJS (bold header, frozen header row, autofilter, number
 format); `.csv` uses `;` as the delimiter with a UTF-8 BOM and comma decimals.
 
+The same endpoint serves the manual "Докупить" list: it is the service board, so
+its rows are exported through `/api/boards/:serviceId/export`.
+
 ## Sellers and products
 
 A seller (shop) owns many products (offers). The shop holds `name` (unique),
@@ -210,6 +213,7 @@ added.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/common-purchases?mode=merged\|by_board` | Aggregated rows with calculated columns and totals |
+| `GET` | `/common-purchases/export?format=xlsx\|csv&mode=merged\|by_board` | Export the sheet as a file (`Content-Disposition: attachment`) |
 | `PUT` | `/common-purchases` | Set override `{matchKey, productId?, packsOverride?, shippingCost?, notPurchased?}` |
 | `PUT` | `/common-purchases/bulk` | Same override applied to `{matchKeys, changes}` at once (a footprint-grouped row) |
 | `PUT` | `/common-purchases/:matchKey` | Same, for simple/encoded keys |
@@ -224,6 +228,14 @@ this is the "common purchases" configurator driven from the "Платы" list.
 A row whose footprint is marked for grouping carries `grouped: true`, its
 `matchKeys` (for the bulk edit) and `names` (the values behind the row). The
 `by_board` mode and the totals behave as usual.
+
+`GET /common-purchases/export` returns the whole sheet (no filters, no
+pagination) in the requested `mode`. Columns: Наименование,
+Корпус/Footprint, Нужно всего, one column per board name in `by_board`, Позиции
+(the names behind a grouped row), Продавец, Товар, Не закупается, В упаковке,
+Цена упаковки, Упаковок, Доставка, Стоимость, plus an `ИТОГО` row (shipping and
+cost summed over the rows that are not `notPurchased`). The file/sheet is named
+«Общие закупки».
 
 ## Footprints
 

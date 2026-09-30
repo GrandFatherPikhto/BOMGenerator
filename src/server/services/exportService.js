@@ -1,17 +1,22 @@
-// Export one board's purchase table to Excel (*.xlsx) or CSV.
+// Export purchase tables to Excel (*.xlsx) or CSV.
 //
-// The rows come from `getBoardView`, so the order (category/subcategory blocks)
-// and the calculated columns are exactly the same as on screen.
+// There are two datasets:
+//   * one board's purchase table (rows come from `getBoardView`, so the order —
+//     category/subcategory blocks — and the calculated columns match the screen);
+//   * the "common purchases" sheet (rows come from `getCommonPurchases`).
+// Both are rendered through the same column-driven builders below.
 import ExcelJS from 'exceljs';
 
+import { COMMON_MODES } from '../../shared/index.js';
 import { badRequest } from '../lib/httpError.js';
 import { Seller } from '../models/Seller.js';
 import { SellerProduct } from '../models/SellerProduct.js';
 import { getBoardView } from './boardService.js';
+import { getCommonPurchases } from './commonPurchaseService.js';
 
 export const EXPORT_FORMATS = ['xlsx', 'csv'];
 
-const COLUMNS = [
+const BOARD_COLUMNS = [
   { label: 'Категория', key: 'category' },
   { label: 'Подкатегория', key: 'subcategory' },
   { label: 'Обозначения', key: 'reference' },
@@ -27,12 +32,22 @@ const COLUMNS = [
   { label: 'В упаковке', key: 'packQty', numeric: true },
   { label: 'Цена упаковки', key: 'packPrice', numeric: true, money: true },
   { label: 'Упаковок', key: 'packs', numeric: true },
-  { label: 'Доставка', key: 'shippingCost', numeric: true, money: true },
-  { label: 'Стоимость', key: 'cost', numeric: true, money: true },
+  { label: 'Доставка', key: 'shippingCost', numeric: true, money: true, total: true },
+  { label: 'Стоимость', key: 'cost', numeric: true, money: true, total: true },
   { label: 'Описание', key: 'description' },
 ];
 
-function toRows(view, productMap, sellerMap) {
+const COMMON_SHEET_NAME = 'Общие закупки';
+
+function normalizeFormat(format) {
+  const normalized = String(format ?? 'xlsx').toLowerCase();
+  if (!EXPORT_FORMATS.includes(normalized)) {
+    throw badRequest(`format must be one of ${EXPORT_FORMATS.join(', ')}`);
+  }
+  return normalized;
+}
+
+function toBoardRows(view, productMap, sellerMap) {
   return view.blocks
     .filter((block) => block.kind === 'line')
     .map((block) => block.line)
@@ -65,6 +80,73 @@ function toRows(view, productMap, sellerMap) {
     });
 }
 
+/** Columns of the "common purchases" sheet, matching its on-screen table. */
+function commonColumns(view, mode) {
+  const columns = [
+    { label: 'Наименование', key: 'value' },
+    { label: 'Корпус/Footprint', key: 'footprint' },
+    { label: 'Нужно всего', key: 'totalQty', numeric: true },
+  ];
+
+  if (mode === 'by_board') {
+    for (const boardName of view.boardNames ?? []) {
+      columns.push({
+        label: boardName,
+        key: `board:${boardName}`,
+        numeric: true,
+      });
+    }
+  }
+
+  columns.push(
+    // Grouped rows stand for several values on one footprint; their names would
+    // otherwise be lost, so they are listed here.
+    { label: 'Позиции', key: 'names' },
+    { label: 'Продавец', key: 'sellerName' },
+    { label: 'Товар', key: 'productName' },
+    { label: 'Не закупается', key: 'notPurchasedLabel' },
+    { label: 'В упаковке', key: 'packQty', numeric: true },
+    { label: 'Цена упаковки', key: 'packPrice', numeric: true, money: true },
+    { label: 'Упаковок', key: 'packs', numeric: true },
+    { label: 'Доставка', key: 'shippingCost', numeric: true, money: true, total: true },
+    { label: 'Стоимость', key: 'cost', numeric: true, money: true, total: true },
+  );
+
+  return columns;
+}
+
+function toCommonRows(view, mode, productMap, sellerMap) {
+  return view.blocks
+    .filter((block) => block.kind === 'line')
+    .map((block) => block.line)
+    .map((line) => {
+      const product = line.productId
+        ? productMap.get(String(line.productId)) ?? null
+        : null;
+      const seller = product ? sellerMap.get(String(product.sellerId)) ?? null : null;
+      const row = {
+        value: line.grouped ? 'Группа по посадочному месту' : line.value ?? '',
+        footprint: line.footprint ?? '',
+        totalQty: line.totalQty ?? '',
+        names: line.grouped ? (line.names ?? []).join(', ') : '',
+        sellerName: seller?.name ?? '',
+        productName: product?.name ?? '',
+        notPurchasedLabel: line.notPurchased ? 'Да' : '',
+        packQty: product?.packQty ?? '',
+        packPrice: product?.packPrice ?? '',
+        packs: line.packs ?? '',
+        shippingCost: line.shippingCost ?? '',
+        cost: line.cost ?? '',
+      };
+      if (mode === 'by_board') {
+        for (const [boardName, qty] of Object.entries(line.byBoard ?? {})) {
+          row[`board:${boardName}`] = qty;
+        }
+      }
+      return row;
+    });
+}
+
 function isBlank(value) {
   return value === null || value === undefined || value === '';
 }
@@ -81,10 +163,20 @@ function csvEscape(value) {
   return text;
 }
 
-function buildCsv(rows, totals) {
-  const header = COLUMNS.map((column) => column.label);
+/** The "ИТОГО" row: the label in the first cell, the sums in the `total` ones. */
+function buildTotalsRow(columns, totals) {
+  return columns.map((column, index) => {
+    if (index === 0) {
+      return 'ИТОГО';
+    }
+    return column.total ? (totals[column.key] ?? '') : '';
+  });
+}
+
+function buildCsv(columns, rows, totals) {
+  const header = columns.map((column) => column.label);
   const body = rows.map((row) =>
-    COLUMNS.map((column) => {
+    columns.map((column) => {
       const value = row[column.key];
       if (column.numeric) {
         return numberText(value);
@@ -93,18 +185,9 @@ function buildCsv(rows, totals) {
     }),
   );
 
-  const totalsRow = COLUMNS.map((column, index) => {
-    if (index === 0) {
-      return 'ИТОГО';
-    }
-    if (column.key === 'shippingCost') {
-      return numberText(totals.shippingCost);
-    }
-    if (column.key === 'cost') {
-      return numberText(totals.cost);
-    }
-    return '';
-  });
+  const totalsRow = buildTotalsRow(columns, totals).map((value) =>
+    typeof value === 'number' ? numberText(value) : value,
+  );
 
   const lines = [header, ...body, totalsRow].map((row) =>
     row.map(csvEscape).join(';'),
@@ -119,11 +202,11 @@ function sanitizeSheetTitle(name) {
   return (title || 'BOM').slice(0, 31);
 }
 
-async function buildXlsx(board, rows, totals) {
+async function buildXlsx({ sheetName, columns, rows, totals }) {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet(sanitizeSheetTitle(board.name));
+  const worksheet = workbook.addWorksheet(sanitizeSheetTitle(sheetName));
 
-  worksheet.columns = COLUMNS.map((column) => ({
+  worksheet.columns = columns.map((column) => ({
     header: column.label,
     key: column.key,
     width: Math.min(40, Math.max(10, column.label.length + 2)),
@@ -131,7 +214,7 @@ async function buildXlsx(board, rows, totals) {
 
   for (const row of rows) {
     worksheet.addRow(
-      COLUMNS.reduce((accumulator, column) => {
+      columns.reduce((accumulator, column) => {
         const value = row[column.key];
         accumulator[column.key] =
           column.numeric && !isBlank(value) ? Number(value) : isBlank(value) ? '' : String(value);
@@ -141,13 +224,11 @@ async function buildXlsx(board, rows, totals) {
   }
 
   const totalsRow = worksheet.addRow(
-    COLUMNS.reduce((accumulator, column, index) => {
+    columns.reduce((accumulator, column, index) => {
       if (index === 0) {
         accumulator[column.key] = 'ИТОГО';
-      } else if (column.key === 'shippingCost') {
-        accumulator[column.key] = totals.shippingCost;
-      } else if (column.key === 'cost') {
-        accumulator[column.key] = totals.cost;
+      } else if (column.total) {
+        accumulator[column.key] = totals[column.key] ?? '';
       } else {
         accumulator[column.key] = '';
       }
@@ -167,10 +248,10 @@ async function buildXlsx(board, rows, totals) {
   worksheet.views = [{ state: 'frozen', ySplit: 1 }];
   worksheet.autoFilter = {
     from: { row: 1, column: 1 },
-    to: { row: 1, column: COLUMNS.length },
+    to: { row: 1, column: columns.length },
   };
 
-  COLUMNS.forEach((column, index) => {
+  columns.forEach((column, index) => {
     if (column.money) {
       worksheet.getColumn(index + 1).numFmt = '#,##0.00';
     }
@@ -180,11 +261,33 @@ async function buildXlsx(board, rows, totals) {
   return Buffer.from(buffer);
 }
 
-function fileName(boardName, format) {
-  const base = String(boardName ?? 'board')
+function fileName(baseName, format) {
+  const base = String(baseName ?? 'export')
     .replace(/[\\/:*?"<>|]/g, '_')
     .trim();
-  return `${base || 'board'}.${format}`;
+  return `${base || 'export'}.${format}`;
+}
+
+/**
+ * Build a RFC 5987 `Content-Disposition`. HTTP headers are latin-1, so a
+ * non-ASCII file name (e.g. «Общие закупки.xlsx») may only appear in the
+ * `filename*` part; the quoted `filename` carries an ASCII-only fallback.
+ */
+export function contentDisposition(filename) {
+  const name = String(filename ?? 'export');
+  const fallback = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
+
+async function loadCatalog() {
+  const [products, sellers] = await Promise.all([
+    SellerProduct.find().lean(),
+    Seller.find().lean(),
+  ]);
+  return {
+    productMap: new Map(products.map((product) => [String(product._id), product])),
+    sellerMap: new Map(sellers.map((seller) => [String(seller._id), seller])),
+  };
 }
 
 /**
@@ -193,19 +296,11 @@ function fileName(boardName, format) {
  * a string (csv).
  */
 export async function exportBoard(boardId, format = 'xlsx') {
-  const normalized = String(format).toLowerCase();
-  if (!EXPORT_FORMATS.includes(normalized)) {
-    throw badRequest(`format must be one of ${EXPORT_FORMATS.join(', ')}`);
-  }
+  const normalized = normalizeFormat(format);
 
   const view = await getBoardView(boardId);
-  const [products, sellers] = await Promise.all([
-    SellerProduct.find().lean(),
-    Seller.find().lean(),
-  ]);
-  const productMap = new Map(products.map((product) => [String(product._id), product]));
-  const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
-  const rows = toRows(view, productMap, sellerMap);
+  const { productMap, sellerMap } = await loadCatalog();
+  const rows = toBoardRows(view, productMap, sellerMap);
   const totals = {
     shippingCost: view.totals.shippingCost,
     cost: view.totals.cost,
@@ -215,7 +310,7 @@ export async function exportBoard(boardId, format = 'xlsx') {
     return {
       filename: fileName(view.board.name, 'csv'),
       contentType: 'text/csv; charset=utf-8',
-      body: buildCsv(rows, totals),
+      body: buildCsv(BOARD_COLUMNS, rows, totals),
     };
   }
 
@@ -223,6 +318,53 @@ export async function exportBoard(boardId, format = 'xlsx') {
     filename: fileName(view.board.name, 'xlsx'),
     contentType:
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    body: await buildXlsx(view.board, rows, totals),
+    body: await buildXlsx({
+      sheetName: view.board.name,
+      columns: BOARD_COLUMNS,
+      rows,
+      totals,
+    }),
+  };
+}
+
+/**
+ * Build an export for the "common purchases" sheet in the given mode.
+ * Returns `{ filename, contentType, body }` where `body` is a Buffer (xlsx) or
+ * a string (csv).
+ */
+export async function exportCommonPurchases(mode = 'merged', format = 'xlsx') {
+  const normalizedFormat = normalizeFormat(format);
+  const normalizedMode = String(mode ?? 'merged').toLowerCase();
+  if (!COMMON_MODES.includes(normalizedMode)) {
+    throw badRequest(`mode must be one of ${COMMON_MODES.join(', ')}`);
+  }
+
+  const view = await getCommonPurchases(normalizedMode);
+  const { productMap, sellerMap } = await loadCatalog();
+  const columns = commonColumns(view, normalizedMode);
+  const rows = toCommonRows(view, normalizedMode, productMap, sellerMap);
+  const totals = {
+    shippingCost: view.totals.shippingCost,
+    cost: view.totals.cost,
+  };
+
+  if (normalizedFormat === 'csv') {
+    return {
+      filename: fileName(COMMON_SHEET_NAME, 'csv'),
+      contentType: 'text/csv; charset=utf-8',
+      body: buildCsv(columns, rows, totals),
+    };
+  }
+
+  return {
+    filename: fileName(COMMON_SHEET_NAME, 'xlsx'),
+    contentType:
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    body: await buildXlsx({
+      sheetName: COMMON_SHEET_NAME,
+      columns,
+      rows,
+      totals,
+    }),
   };
 }

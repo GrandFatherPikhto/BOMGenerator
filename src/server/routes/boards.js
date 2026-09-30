@@ -3,7 +3,10 @@ import { Router } from 'express';
 import multer from 'multer';
 
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { exportBoard } from '../services/exportService.js';
+import {
+  contentDisposition,
+  exportBoard,
+} from '../services/exportService.js';
 import {
   addManualLine,
   createBoard,
@@ -131,10 +134,7 @@ router.get(
     const format = req.query.format || 'xlsx';
     const { filename, contentType, body } = await exportBoard(req.params.id, format);
     res.setHeader('Content-Type', contentType);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
-    );
+    res.setHeader('Content-Disposition', contentDisposition(filename));
     res.send(body);
   }),
 );
