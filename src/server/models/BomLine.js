@@ -26,6 +26,9 @@ const bomLineSchema = new mongoose.Schema(
       default: null,
     },
     common: { type: Boolean, default: false },
+    // Hand-filled "Не закупается": the position is not bought at all, so it is
+    // left out of the totals (and hidden by default in the tables).
+    notPurchased: { type: Boolean, default: false },
     // Shipping is entered by hand and is not tied to the seller.
     shippingCost: { type: Number, default: null },
     // Free-text note per position; hand-filled and kept across re-imports.

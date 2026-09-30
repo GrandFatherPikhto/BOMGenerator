@@ -10,6 +10,7 @@ import { sellerOptionsFromProducts } from '../lib/sellerOptions.js';
 import {
   DescriptionCell,
   LinesTable,
+  NotPurchasedCell,
   PacksCell,
   ProductCell,
   SellerCell,
@@ -20,6 +21,7 @@ import LineFiltersBar from './LineFiltersBar.jsx';
 // Rows that share a component but come from different sources are highlighted:
 // a hint that unifying the source saves on delivery.
 const SOURCE_ROW_SX = { backgroundColor: '#fff3e0' };
+const NOT_PURCHASED_ROW_SX = { backgroundColor: '#eeeeee', color: 'text.disabled' };
 
 /**
  * "Все" tab: a summary of every enabled board. Rows are grouped by value +
@@ -126,6 +128,11 @@ export default function AllBoardsPurchasesView({
       render: (row) => row.totalQty,
     },
     {
+      id: 'notPurchased',
+      label: 'Не закупается',
+      render: (row) => <NotPurchasedCell row={row} onChange={patch(row)} />,
+    },
+    {
       id: 'seller',
       label: 'Продавец',
       render: (row) => (
@@ -208,7 +215,13 @@ export default function AllBoardsPurchasesView({
         blocks={visibleBlocks}
         columns={columns}
         resetKey="all"
-        rowSx={(row) => (row.hasMultipleSources ? SOURCE_ROW_SX : undefined)}
+        rowSx={(row) =>
+          row.notPurchased
+            ? NOT_PURCHASED_ROW_SX
+            : row.hasMultipleSources
+              ? SOURCE_ROW_SX
+              : undefined
+        }
         page={page}
         pageSize={pageSize}
         onPageChange={onPageChange}

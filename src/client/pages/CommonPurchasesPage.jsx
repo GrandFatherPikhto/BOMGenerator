@@ -15,6 +15,7 @@ import { api } from '../lib/apiClient.js';
 import { sellerOptionsFromProducts } from '../lib/sellerOptions.js';
 import {
   LinesTable,
+  NotPurchasedCell,
   PAGE_SIZE_DEFAULT,
   PacksCell,
   ProductCell,
@@ -205,6 +206,13 @@ export default function CommonPurchasesPage() {
       ),
     },
     {
+      id: 'notPurchased',
+      label: 'Не закупается',
+      render: (row) => (
+        <NotPurchasedCell row={row} onChange={(c) => patch(row, c)} />
+      ),
+    },
+    {
       id: 'packQty',
       label: 'В упаковке',
       align: 'right',
@@ -281,6 +289,9 @@ export default function CommonPurchasesPage() {
             blocks={visibleBlocks}
             columns={columns}
             resetKey={resetKey}
+            rowSx={(row) =>
+              row.notPurchased ? { backgroundColor: '#eeeeee', color: 'text.disabled' } : undefined
+            }
             page={page}
             pageSize={pageSize}
             onPageChange={setPage}

@@ -28,6 +28,7 @@ const LINE_FILTER_BOOL_KEYS = [
   'valueCaseSensitive',
   'footprintRegex',
   'footprintCaseSensitive',
+  'showNotPurchased',
 ];
 
 /** A plain `{}` (not an array, not null, not a class instance). */

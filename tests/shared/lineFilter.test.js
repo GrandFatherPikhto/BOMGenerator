@@ -181,3 +181,22 @@ test('filterBlocks without a matcher returns the input unchanged', () => {
   const blocks = [{ kind: 'line', line: { value: 'X' } }];
   assert.equal(filterBlocks(blocks, null), blocks);
 });
+
+test('"не закупается" rows are hidden unless showNotPurchased is set', () => {
+  const rows = [
+    { value: 'Bought', notPurchased: false },
+    { value: 'Skipped', notPurchased: true },
+    { value: 'Legacy' },
+  ];
+
+  // Hidden by default (also for rows of an older shape without the field).
+  const hidden = compileLineFilter({});
+  assert.deepEqual(rows.filter(hidden.match).map((row) => row.value), ['Bought', 'Legacy']);
+
+  const shown = compileLineFilter({ showNotPurchased: true });
+  assert.deepEqual(rows.filter(shown.match).map((row) => row.value), [
+    'Bought',
+    'Skipped',
+    'Legacy',
+  ]);
+});

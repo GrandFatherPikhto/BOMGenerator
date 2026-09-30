@@ -126,6 +126,7 @@ export async function getCommonPurchases(mode = 'merged') {
       byBoard: mode === 'by_board' ? group.byBoard : undefined,
       productId: product ? String(product._id) : null,
       sellerId: seller ? String(seller._id) : null,
+      notPurchased: Boolean(override.notPurchased),
       shippingCost,
       shippingOverride,
       packsOverride,
@@ -142,6 +143,9 @@ export async function getCommonPurchases(mode = 'merged') {
   const blocks = groupIntoBlocks(rows, categories, settings);
   const totals = { cost: 0, shippingCost: 0 };
   for (const row of rows) {
+    if (row.notPurchased) {
+      continue;
+    }
     if (row.cost !== null) {
       totals.cost += row.cost;
     }
@@ -207,6 +211,10 @@ export async function setCommonOverride(matchKey, payload = {}) {
       }
       doc.packsOverride = value;
     }
+  }
+
+  if (payload.notPurchased !== undefined) {
+    doc.notPurchased = Boolean(payload.notPurchased);
   }
 
   await doc.save();

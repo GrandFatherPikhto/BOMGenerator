@@ -35,7 +35,7 @@ and paste the printed object into the `users` array of `auth.json`.
 | `GET` | `/boards/:id/lines` | Grouped rows with calculated columns and totals |
 | `GET` | `/boards/:id/export` | Export the purchase table (`?format=xlsx\|csv`) |
 | `POST` | `/boards/:id/lines` | Add a manual line `{value, footprint?, qty?, reference?}` |
-| `PUT` | `/boards/:id/lines/:lineId` | Update a line (product/`common`/`packsOverride`/`shippingCost`/`description`; manual lines may also change value/qty/footprint/reference) |
+| `PUT` | `/boards/:id/lines/:lineId` | Update a line (product/`common`/`notPurchased`/`packsOverride`/`shippingCost`/`description`; manual lines may also change value/qty/footprint/reference) |
 | `DELETE` | `/boards/:id/lines/:lineId` | Delete a line |
 
 ### Import response
@@ -65,7 +65,8 @@ and paste the printed object into the `users` array of `auth.json`.
     { "kind": "line", "line": {
         "id": "…", "reference": "C1", "value": "470uF 35V",
         "footprint": "Capacitor_THT:C_Radial…", "matchKey": "num|F|4.70e-4|35V\u0001capacitor_tht:…",
-        "qty": 1, "totalQty": 1, "productId": null, "sellerId": null, "common": false,
+        "qty": 1, "totalQty": 1, "productId": null, "sellerId": null,
+        "common": false, "notPurchased": false,
         "packsOverride": null, "packs": null,
         "shippingOverride": null, "shippingCost": null, "cost": null,
         "category": "Конденсаторы", "subcategory": "Электролитические" } }
@@ -79,8 +80,9 @@ and paste the printed object into the `users` array of `auth.json`.
 `GET /api/boards/:id/export?format=xlsx|csv` returns the board's purchase table
 as a file (`Content-Disposition: attachment`). Columns: Категория, Подкатегория,
 Обозначения, Наименование, Корпус/Footprint, Штук на плату, Плат, Итого, Общие,
-Продавец, URL, В упаковке, Цена упаковки, Упаковок, Доставка, Стоимость,
-Описание, plus an `ИТОГО` row (shipping and cost summed over non-common rows).
+Не закупается, Продавец, URL, В упаковке, Цена упаковки, Упаковок, Доставка,
+Стоимость, Описание, plus an `ИТОГО` row (shipping and cost summed over the rows
+that are neither `common` nor `notPurchased`).
 The `Продавец` column holds the shop of the chosen product and `URL` its link
 (the product URL, falling back to the shop URL).
 
@@ -207,7 +209,7 @@ so it becomes per-account once authentication is added.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/common-purchases?mode=merged\|by_board` | Aggregated rows with calculated columns and totals |
-| `PUT` | `/common-purchases` | Set override `{matchKey, productId?, packsOverride?, shippingCost?}` |
+| `PUT` | `/common-purchases` | Set override `{matchKey, productId?, packsOverride?, shippingCost?, notPurchased?}` |
 | `PUT` | `/common-purchases/:matchKey` | Same, for simple/encoded keys |
 
 `by_board` adds a `byBoard` map to each row (`{"Board A": 2, "Board B": 3}`)

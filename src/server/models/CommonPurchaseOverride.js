@@ -16,6 +16,8 @@ const commonPurchaseOverrideSchema = new mongoose.Schema(
     shippingCost: { type: Number, default: null },
     // Manual override of the package count (empty -> auto ceil of the need).
     packsOverride: { type: Number, default: null, min: 0 },
+    // "Не закупается": the aggregated position is left out of the totals.
+    notPurchased: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

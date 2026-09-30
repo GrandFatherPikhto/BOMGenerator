@@ -35,6 +35,7 @@ function readFilters(params) {
     footprintCaseSensitive: params.get('fpCase') === '1',
     qtyOp: params.get('qtyOp') ?? '',
     qty: params.get('qty') ?? '',
+    showNotPurchased: params.get('np') === '1',
   };
 }
 
@@ -49,6 +50,7 @@ function filtersToParams(filters) {
     fpCase: filters.footprintCaseSensitive ? '1' : '',
     qtyOp: filters.qtyOp,
     qty: filters.qty,
+    np: filters.showNotPurchased ? '1' : '',
   };
 }
 
@@ -70,6 +72,7 @@ const PURCHASES_UI_DEFAULTS = {
     footprintCaseSensitive: false,
     qtyOp: '',
     qty: '',
+    showNotPurchased: false,
   },
   sellerByBoard: {},
 };

@@ -24,6 +24,8 @@ export const EMPTY_LINE_FILTERS = {
   qtyOp: '',
   qty: '',
   seller: '',
+  // "Не закупается" rows are hidden by default; the toggle shows them.
+  showNotPurchased: false,
 };
 
 const QTY_OPTIONS = [
@@ -238,6 +240,17 @@ export default function LineFiltersBar({ rows, filters, onChange, sellerOptions 
         qty={filters.qty}
         onOpChange={(qtyOp) => patch({ qtyOp })}
         onQtyChange={(qty) => patch({ qty })}
+      />
+      <FormControlLabel
+        control={
+          <Checkbox
+            size="small"
+            checked={Boolean(filters.showNotPurchased)}
+            onChange={(event) => patch({ showNotPurchased: event.target.checked })}
+          />
+        }
+        label="Показывать не закупаемые"
+        sx={{ mt: 0.5 }}
       />
       <SellerFilterField
         value={filters.seller}

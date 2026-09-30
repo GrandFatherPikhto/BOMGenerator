@@ -68,6 +68,7 @@ rejected with `details.code = "SOURCE_FILE_TAKEN"`.
 | `raw` | Mixed | Remaining CSV columns verbatim |
 | `productId` | ObjectId → `SellerProduct` \| null | Hand-filled, survives re-import |
 | `common` | Boolean | Hand-filled, survives re-import |
+| `notPurchased` | Boolean | "Не закупается": left out of the totals and hidden by default, survives re-import |
 | `packsOverride` | Number \| null | Hand-entered package count (`null` = auto) |
 | `shippingCost` | Number \| null | Hand-entered delivery for this row (`null` = the product's default) |
 | `description` | String | Hand-filled note per position, survives re-import |
@@ -151,6 +152,7 @@ returns a readable message naming the offending pattern.
 | `productId` | ObjectId → `SellerProduct` \| null | |
 | `packsOverride` | Number \| null | Hand-entered package count (`null` = auto) |
 | `shippingCost` | Number \| null | Hand-entered delivery (`null` = the product's default) |
+| `notPurchased` | Boolean | "Не закупается": left out of the aggregate totals |
 
 ## Calculated columns
 
@@ -165,6 +167,12 @@ cost       = packs × product.packPrice + (shipping || 0)     (null без то�
 
 Rows with `common` are excluded from the board "Итого" — they are bought on the
 "Общие закупки" sheet.
+
+Rows with `notPurchased` ("Не закупается") are left out of the totals everywhere
+— the board, the "Все" tab and the common sheet — and are hidden by default
+behind the "Показывать не закупаемые" filter toggle. On the board a line marked
+"Общие" takes the flag from its `CommonPurchaseOverride` (read-only there); on
+the "Все" tab the flag applies to every line behind the row.
 
 ## Migration from the previous model
 

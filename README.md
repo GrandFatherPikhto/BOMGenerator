@@ -58,6 +58,13 @@ kept as git-ignored local working documents.
 - **Common purchases**: virtual aggregation of every row marked `Общие` across
   all boards (accounting for each board's quantity), in `merged` or
   `by_board` modes. Product/packages/shipping set here survive re-imports.
+- **"Не закупается"**: a position can be marked as not purchased in the "Закупки"
+  tables (including "Все"), "Общие закупки" and "Докупить". Such rows are left
+  out of the totals (and of the aggregated purchase), hidden by default and shown
+  with the "Показывать не закупаемые" filter toggle. On a board a row marked
+  `Общие` takes the flag from the common sheet (read-only there); on the "Все"
+  tab it applies to every line behind the row. The export gains a
+  "Не закупается" column.
 - **"Докупить"**: a service board for positions bought outside any board.
 - **Common-purchases configurator**: each board has two flags on the "Платы"
   list — "Включено" (participates in the app) and "В общих закупках"
@@ -67,6 +74,9 @@ kept as git-ignored local working documents.
   the "Закупки" tab.
 - **Export** the purchase table of a board to Excel (`.xlsx`) or CSV from the
   "Закупки" tab.
+- **JSON database dump**: `npm run dump` writes every collection to one file
+  (`./backups/dump-YYYYMMDD-HHmmss.json`), and
+  `npm run restore -- <file> --yes` replaces the data from it.
 - **Configurable page width** (Settings → "Ширина страницы"): normal, wide or
   full — applied to every page right after saving.
 - **Product links**: a small link next to the chosen product opens the offer page
@@ -120,6 +130,8 @@ the Python project) and creates the "Докупить" service board.
 | `npm run seed` | Insert the default categories/settings if empty |
 | `npm run seed -- --reset` | Wipe and re-insert the default categories |
 | `npm run migrate` | One-off idempotent "seller → seller + product" migration (also runs at startup) |
+| `npm run dump` | Dump every collection to `./backups/dump-YYYYMMDD-HHmmss.json` (path optional) |
+| `npm run restore -- <file> --yes` | Replace the data from a dump (`--yes` skips the confirmation) |
 | `npm test` | All tests: `node:test` (shared + server + API) then Vitest (client) |
 | `npm run test:node` | `node:test` suites only (shared, server helpers, API) |
 | `npm run test:unit` | Unit tests only (shared + server helpers) |
@@ -137,8 +149,9 @@ the Python project) and creates the "Докупить" service board.
   Exclude-from-BOM overrides), create/delete.
 - **Закупки** — the editable purchase table of a board picked in the header:
   "Плат в изделии", a "Продавец" filter for the list, the searchable "Товар"
-  picker, inline `Общие` / packages / shipping / note editing, the "Итого" that
-  excludes "Общие" rows, and **Excel/CSV export**.
+  picker, inline `Общие` / "Не закупается" / packages / shipping / note editing,
+  the "Итого" that excludes "Общие" and "Не закупается" rows, the "Показывать не
+  закупаемые" filter toggle, and **Excel/CSV export**.
 - **Экран платы** — read-only BOM view: name, footprint, quantity, total and the
   note; purchase data (seller, `Общие`, shipping, cost) is not shown here.
   Reference designators are revealed per row with an arrow (collapsed by default).
@@ -205,7 +218,7 @@ npm test
 | [`tests/server/`](tests/server) | `node:test` unit tests for server-side helpers |
 | [`tests/api/`](tests/api) | `node:test` API integration tests (need MongoDB) |
 | [`tests/client/`](tests/client) | Vitest + jsdom tests for the React layer |
-| [`scripts/`](scripts) | `seed.js`, `acceptance.js`, `inspect.local.mjs` |
+| [`scripts/`](scripts) | `seed.js`, `migrate.js`, `dump.js`, `restore.js`, `acceptance.js`, `inspect.local.mjs` |
 | [`docs/`](docs) | Architecture, data model, API reference |
 | `techdocs/`, `python/` | Git-ignored local working notes and the original Python project |
 

@@ -104,6 +104,9 @@ export function activeSellerId(sellerOptions, sellerId) {
  * `value` and `footprint` match the eponymous row fields; `qtyOp`/`qty` compare
  * the row's `totalQty` (the "Итого" / "Нужно всего" column); `seller` keeps only
  * the rows bought from that seller (which positions it supplies).
+ *
+ * Rows with `notPurchased` ("Не закупается") are hidden by default and shown
+ * only when `showNotPurchased` is set — the toggle in the filter bar.
  */
 export function compileLineFilter({
   value = '',
@@ -115,6 +118,7 @@ export function compileLineFilter({
   qtyOp = '',
   qty = '',
   seller = '',
+  showNotPurchased = false,
 } = {}) {
   const valueFilter = compileTextMatch(value, {
     regex: valueRegex,
@@ -139,6 +143,9 @@ export function compileLineFilter({
       qty: qtyFilter.error,
     },
     match: (row) => {
+      if (!showNotPurchased && row?.notPurchased) {
+        return false;
+      }
       if (valueFilter.match && !valueFilter.match(row?.value)) {
         return false;
       }

@@ -8,6 +8,7 @@ import {
   CommonCell,
   DescriptionCell,
   LinesTable,
+  NotPurchasedCell,
   PacksCell,
   ProductCell,
   ProductLabel,
@@ -19,6 +20,7 @@ import LineFiltersBar from './LineFiltersBar.jsx';
 import ReferenceDesignators from './ReferenceDesignators.jsx';
 
 const COMMON_ROW_SX = { backgroundColor: '#f5f5f5' };
+const NOT_PURCHASED_ROW_SX = { backgroundColor: '#eeeeee', color: 'text.disabled' };
 
 /**
  * Editable purchase table of one board: category blocks with inline editing of
@@ -113,6 +115,20 @@ export default function PurchaseBoardView({
       id: 'common',
       label: 'Общие',
       render: (row) => <CommonCell row={row} onChange={patch(row)} />,
+    },
+    {
+      id: 'notPurchased',
+      label: 'Не закупается',
+      render: (row) =>
+        row.common ? (
+          <Tooltip title="Настраивается на вкладке «Общие закупки»">
+            <span>
+              <NotPurchasedCell row={row} onChange={patch(row)} disabled />
+            </span>
+          </Tooltip>
+        ) : (
+          <NotPurchasedCell row={row} onChange={patch(row)} />
+        ),
     },
     {
       id: 'seller',
@@ -214,7 +230,9 @@ export default function PurchaseBoardView({
         blocks={visibleBlocks}
         columns={columns}
         resetKey={board.id}
-        rowSx={(row) => (row.common ? COMMON_ROW_SX : undefined)}
+        rowSx={(row) =>
+          row.notPurchased ? NOT_PURCHASED_ROW_SX : row.common ? COMMON_ROW_SX : undefined
+        }
         renderDetail={(row) => <ReferenceDesignators reference={row.reference} />}
         page={page}
         pageSize={pageSize}

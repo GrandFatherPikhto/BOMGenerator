@@ -22,6 +22,7 @@ import { api } from '../lib/apiClient.js';
 import {
   CommonCell,
   LinesTable,
+  NotPurchasedCell,
   ProductCell,
   QuantityCell,
   ShippingCell,
@@ -113,6 +114,11 @@ export default function ManualPage() {
       render: (row) => <CommonCell row={row} onChange={(c) => patch(row, c)} />,
     },
     {
+      id: 'notPurchased',
+      label: 'Не закупается',
+      render: (row) => <NotPurchasedCell row={row} onChange={(c) => patch(row, c)} />,
+    },
+    {
       id: 'seller',
       label: 'Продавец',
       render: (row) => productOf(row)?.sellerName ?? '',
@@ -186,7 +192,14 @@ export default function ManualPage() {
         </Box>
       ) : (
         <>
-          <LinesTable blocks={view.blocks} columns={columns} resetKey={serviceId} />
+          <LinesTable
+            blocks={view.blocks}
+            columns={columns}
+            resetKey={serviceId}
+            rowSx={(row) =>
+              row.notPurchased ? { backgroundColor: '#eeeeee', color: 'text.disabled' } : undefined
+            }
+          />
           <Paper variant="outlined" sx={{ mt: 2, p: 1.5 }}>
             <Stack direction="row" justifyContent="flex-end" spacing={4}>
               <Typography>

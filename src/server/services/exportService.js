@@ -21,6 +21,7 @@ const COLUMNS = [
   { label: 'Плат', key: 'boardCount', numeric: true },
   { label: 'Итого', key: 'totalQty', numeric: true },
   { label: 'Общие', key: 'commonLabel' },
+  { label: 'Не закупается', key: 'notPurchasedLabel' },
   { label: 'Продавец', key: 'sellerName' },
   { label: 'URL', key: 'sellerUrl' },
   { label: 'В упаковке', key: 'packQty', numeric: true },
@@ -50,6 +51,7 @@ function toRows(view, productMap, sellerMap) {
         boardCount: view.board.count,
         totalQty: line.totalQty ?? '',
         commonLabel: line.common ? 'Да' : '',
+        notPurchasedLabel: line.notPurchased ? 'Да' : '',
         sellerName: seller?.name ?? '',
         // The product link wins; the seller page is the fallback.
         sellerUrl: product?.url || seller?.url || '',

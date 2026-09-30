@@ -175,6 +175,11 @@ function computeRow(line, board, productMap, sellerMap, categories, settings, co
     productId: product ? String(product._id) : null,
     sellerId: seller ? String(seller._id) : null,
     common: isCommon,
+    // For a "Общие" position the flag belongs to the common sheet: the value
+    // comes from the override and is shown read-only on the board.
+    notPurchased: isCommon
+      ? Boolean(override?.notPurchased)
+      : Boolean(line.notPurchased),
     shippingCost,
     shippingOverride,
     description: line.description ?? '',
@@ -276,7 +281,7 @@ export async function getBoardView(boardId) {
 
   const totals = { cost: 0, shippingCost: 0 };
   for (const row of rows) {
-    if (row.common) {
+    if (row.common || row.notPurchased) {
       continue;
     }
     if (row.cost !== null) {
@@ -366,6 +371,8 @@ export async function getAllBoardsView() {
         packsOverrides: new Set(),
         shippingOverrides: new Set(),
         descriptions: new Set(),
+        // Flipped to false as soon as one line behind the group is bought.
+        notPurchased: true,
       };
       groups.set(key, group);
     }
@@ -386,6 +393,8 @@ export async function getAllBoardsView() {
         : String(line.shippingCost),
     );
     group.descriptions.add(String(line.description ?? ''));
+    // The group is "не закупается" only when every line behind it is.
+    group.notPurchased = group.notPurchased && Boolean(line.notPurchased);
   }
 
   // A component (same matchKey) with two or more chosen products is flagged.
@@ -447,6 +456,7 @@ export async function getAllBoardsView() {
       productId: group.productId,
       sellerId: seller ? String(seller._id) : null,
       common: false,
+      notPurchased: group.notPurchased,
       shippingCost,
       shippingOverride: shippingInfo.value === null ? null : Number(shippingInfo.value),
       packsOverride: packsInfo.value === null ? null : Number(packsInfo.value),
@@ -469,6 +479,9 @@ export async function getAllBoardsView() {
   const blocks = groupIntoBlocks(rows, categories, settings);
   const totals = { cost: 0, shippingCost: 0 };
   for (const row of rows) {
+    if (row.notPurchased) {
+      continue;
+    }
     if (row.cost !== null) {
       totals.cost += row.cost;
     }
@@ -510,6 +523,10 @@ export async function updateLine(lineId, payload = {}) {
 
   if (payload.common !== undefined) {
     line.common = Boolean(payload.common);
+  }
+
+  if (payload.notPurchased !== undefined) {
+    line.notPurchased = Boolean(payload.notPurchased);
   }
 
   if (payload.shippingCost !== undefined) {
@@ -649,6 +666,9 @@ export async function updateLinesBulk(lineIds, changes = {}) {
   }
   if (changes.common !== undefined) {
     set.common = Boolean(changes.common);
+  }
+  if (changes.notPurchased !== undefined) {
+    set.notPurchased = Boolean(changes.notPurchased);
   }
   if (changes.shippingCost !== undefined) {
     if (isBlank(changes.shippingCost)) {

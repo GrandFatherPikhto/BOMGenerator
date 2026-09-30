@@ -443,6 +443,22 @@ export function CommonCell({ row, onChange }) {
 }
 
 /**
+ * "Не закупается" checkbox bound to a row. When the row is a common position
+ * the flag belongs to the common-purchases sheet, so the caller passes
+ * `disabled` to keep it read-only here (see PurchaseBoardView).
+ */
+export function NotPurchasedCell({ row, onChange, disabled = false }) {
+  return (
+    <Checkbox
+      size="small"
+      disabled={disabled}
+      checked={Boolean(row.notPurchased)}
+      onChange={(event) => onChange({ notPurchased: event.target.checked })}
+    />
+  );
+}
+
+/**
  * Shipping cost input that commits on blur. An empty value means "auto": the
  * delivery cost of the chosen product is used, and it is shown as a hint.
  */
