@@ -45,9 +45,17 @@ export default function BoardPage() {
       setName(viewData.board.name);
       setCount(viewData.board.count);
     } catch (loadError) {
+      if (loadError.status === 404) {
+        // The remembered board no longer exists (deleted, or the database was
+        // reset): forget it and fall back to the board list instead of
+        // dead-ending on "Board not found".
+        updateUi({ lastOpenBoardId: '' });
+        navigate('/', { replace: true });
+        return;
+      }
       setError(loadError.message);
     }
-  }, [id]);
+  }, [id, navigate, updateUi]);
 
   useEffect(() => {
     load();
