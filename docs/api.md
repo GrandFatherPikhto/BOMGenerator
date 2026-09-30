@@ -28,7 +28,7 @@ and paste the printed object into the `users` array of `auth.json`.
 |--------|------|-------------|
 | `GET` | `/boards` | List boards (with `lineCount`) |
 | `POST` | `/boards` | Create an empty board `{name, count?}` |
-| `POST` | `/boards/import` | Import/re-import a CSV (multipart: `file`, `name`, `excludeDnp?`, `excludeFromBom?`) |
+| `POST` | `/boards/import` | Import/re-import a CSV (multipart: `file`, `name`, `excludeDnp?`, `excludeFromBom?`, `targetBoardId?`, `renameSourceFile?`) |
 | `GET` | `/boards/:id` | One board |
 | `PUT` | `/boards/:id` | Update `{name?, count?, enabled?, inCommon?}` |
 | `DELETE` | `/boards/:id` | Delete a board and its lines (service board not allowed) |
@@ -46,6 +46,13 @@ and paste the printed object into the `users` array of `auth.json`.
   "summary": { "added": 39, "updated": 0, "removed": 0, "total": 39 }
 }
 ```
+
+`409` responses carry a structured `details.code`:
+
+- `SOURCE_FILE_MISMATCH` — the uploaded file name differs from the target
+  board's remembered `sourceFile`; resend with `renameSourceFile=true` to confirm
+  and remember the new name.
+- `SOURCE_FILE_TAKEN` — the uploaded file name already belongs to another board.
 
 ### Board lines response
 

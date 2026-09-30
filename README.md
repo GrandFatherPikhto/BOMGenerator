@@ -28,7 +28,10 @@ kept as git-ignored local working documents.
   name: the same file updates the existing board, refreshing quantities while
   keeping hand-filled product/`Общие`/packages/shipping values, removing
   disappeared rows and adding new ones (the API returns
-  `{added, updated, removed}`).
+  `{added, updated, removed}`). When the export is renamed (a new board
+  revision), the import dialog requires picking the board to update explicitly;
+  a file name that differs from the remembered one is blocked with a red warning
+  until confirmed, after which the new name is remembered for later imports.
 - **Boards**: each board is an independent set of rows with its own quantity
   ("Плат в изделии", default 1).
 - **Editable categorisation rules** (`ParseCategory`) stored in MongoDB. A rule

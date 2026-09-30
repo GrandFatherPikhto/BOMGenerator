@@ -6,7 +6,7 @@ import {
   parseQty,
   parseValue,
 } from '../../shared/index.js';
-import { badRequest } from '../lib/httpError.js';
+import { badRequest, conflict, notFound } from '../lib/httpError.js';
 import { parseBomCsv } from '../lib/csv.js';
 import { Board } from '../models/Board.js';
 import { BomLine } from '../models/BomLine.js';
@@ -30,8 +30,22 @@ function defaultNameFromFile(fileName) {
  * existing board. Rows are matched by `matchKey`, keeping the hand-filled
  * seller/common/shipping values; rows that disappeared from the file are
  * removed.
+ *
+ * `targetBoardId` names an existing board explicitly, which is required when
+ * the export file was renamed: without it a new (duplicate) board would be
+ * created and the old one would keep feeding the common purchases. The stored
+ * `sourceFile` of the target acts as a guard — a mismatch raises a 409 unless
+ * `renameSourceFile` confirms that the new name should be remembered.
  */
-export async function importCsv({ buffer, fileName, name, excludeDnp, excludeFromBom }) {
+export async function importCsv({
+  buffer,
+  fileName,
+  name,
+  excludeDnp,
+  excludeFromBom,
+  targetBoardId,
+  renameSourceFile,
+}) {
   if (!fileName) {
     throw badRequest('A CSV file is required');
   }
@@ -86,15 +100,67 @@ export async function importCsv({ buffer, fileName, name, excludeDnp, excludeFro
     }
   }
 
-  let board = await Board.findOne({ sourceFile: fileName });
+  const incoming = String(fileName);
   const wantedName = String(name ?? '').trim();
-  if (!board) {
-    board = new Board({
-      sourceFile: fileName,
-      name: wantedName || defaultNameFromFile(fileName),
-    });
-  } else if (wantedName) {
-    board.name = wantedName;
+  const rename = Boolean(renameSourceFile);
+  const targetId = String(targetBoardId ?? '').trim();
+
+  let board;
+  if (targetId) {
+    // Explicit re-import target: the user pointed at the exact board. Its
+    // remembered file name guards against importing the wrong export.
+    board = await Board.findById(targetId);
+    if (!board) {
+      throw notFound('Board not found');
+    }
+    if (board.isService) {
+      throw badRequest('The service "Докупить" board cannot be re-imported');
+    }
+    const stored = board.sourceFile ?? '';
+    if (stored && stored !== incoming && !rename) {
+      throw conflict(
+        `Файл «${incoming}» не совпадает с сохранённым именем «${stored}» платы «${board.name}». ` +
+          'Подтвердите повторный импорт, чтобы запомнить новое имя файла.',
+        {
+          code: 'SOURCE_FILE_MISMATCH',
+          boardId: String(board._id),
+          boardName: board.name,
+          storedFileName: stored,
+          incomingFileName: incoming,
+        },
+      );
+    }
+    // The board name is managed on the board screen; an explicit target keeps it.
+  } else {
+    // Default: the file name identifies the board (the first import creates it).
+    board = await Board.findOne({ sourceFile: incoming });
+    if (!board) {
+      board = new Board({
+        sourceFile: incoming,
+        name: wantedName || defaultNameFromFile(incoming),
+      });
+    } else if (wantedName) {
+      board.name = wantedName;
+    }
+  }
+
+  // The incoming name must never belong to a different board, otherwise the
+  // board set would silently gain a duplicate of the same export.
+  const colliding = await Board.findOne({
+    sourceFile: incoming,
+    _id: { $ne: board._id },
+  });
+  if (colliding) {
+    throw conflict(
+      `Файл «${incoming}» уже импортирован в плату «${colliding.name}». ` +
+        'Выберите её как целевую для повторного импорта.',
+      {
+        code: 'SOURCE_FILE_TAKEN',
+        boardId: String(colliding._id),
+        boardName: colliding.name,
+        incomingFileName: incoming,
+      },
+    );
   }
 
   const existingLines = await BomLine.find({ boardId: board._id });
@@ -128,6 +194,7 @@ export async function importCsv({ buffer, fileName, name, excludeDnp, excludeFro
     });
   }
 
+  board.sourceFile = incoming;
   board.importedAt = new Date();
   await board.save();
 

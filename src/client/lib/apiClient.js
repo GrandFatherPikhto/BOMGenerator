@@ -44,8 +44,7 @@ export const api = {
     list: () => request('/boards'),
     get: (id) => request(`/boards/${id}`),
     create: (payload) => request('/boards', { method: 'POST', body: payload }),
-    update: (id, payload) =>
-      request(`/boards/${id}`, { method: 'PUT', body: payload }),
+    update: (id, payload) => request(`/boards/${id}`, { method: 'PUT', body: payload }),
     remove: (id) => request(`/boards/${id}`, { method: 'DELETE' }),
     view: (id) => request(`/boards/${id}/lines`),
     addLine: (id, payload) =>
@@ -71,14 +70,19 @@ export const api = {
       if (options.excludeFromBom !== undefined) {
         form.append('excludeFromBom', String(options.excludeFromBom));
       }
+      if (options.targetBoardId) {
+        form.append('targetBoardId', options.targetBoardId);
+      }
+      if (options.renameSourceFile !== undefined) {
+        form.append('renameSourceFile', String(options.renameSourceFile));
+      }
       return request('/boards/import', { method: 'POST', body: form, isForm: true });
     },
   },
   sellers: {
     list: () => request('/sellers'),
     create: (payload) => request('/sellers', { method: 'POST', body: payload }),
-    update: (id, payload) =>
-      request(`/sellers/${id}`, { method: 'PUT', body: payload }),
+    update: (id, payload) => request(`/sellers/${id}`, { method: 'PUT', body: payload }),
     remove: (id) => request(`/sellers/${id}`, { method: 'DELETE' }),
     products: (id) => request(`/sellers/${id}/products`),
     addProduct: (id, payload) =>
@@ -105,8 +109,7 @@ export const api = {
     list: (sellerId) =>
       request(sellerId ? `/products?sellerId=${sellerId}` : '/products'),
     categories: () => request('/products/categories'),
-    update: (id, payload) =>
-      request(`/products/${id}`, { method: 'PUT', body: payload }),
+    update: (id, payload) => request(`/products/${id}`, { method: 'PUT', body: payload }),
     remove: (id) => request(`/products/${id}`, { method: 'DELETE' }),
   },
   categories: {
@@ -122,8 +125,7 @@ export const api = {
   },
   uiState: {
     get: () => request('/ui-state'),
-    merge: (sections) =>
-      request('/ui-state', { method: 'PATCH', body: { sections } }),
+    merge: (sections) => request('/ui-state', { method: 'PATCH', body: { sections } }),
   },
   commonPurchases: {
     list: (mode = 'merged') => request(`/common-purchases?mode=${mode}`),

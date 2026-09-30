@@ -37,12 +37,23 @@ the product.
 | Field | Type | Notes |
 |-------|------|-------|
 | `name` | String | Human-readable, editable |
-| `sourceFile` | String | **Unique (sparse)**. Re-import key; omitted for the "Докупить" board |
+| `sourceFile` | String | **Unique (sparse)**. Re-import key; a renamed file needs an explicit `targetBoardId`; omitted for the "Докупить" board |
 | `count` | Number | Boards in the product; multiplies "Итого" (`min 1`) |
 | `isService` | Boolean | True only for the single "Докупить" board |
 | `enabled` | Boolean | "Включено" — the board takes part in the app (selectors, common) |
 | `inCommon` | Boolean | "В общих закупках" — its `Общие` rows feed the common sheet |
 | `importedAt` | Date | Last import time |
+
+### Re-import guard
+
+Re-import is keyed by `sourceFile`. A renamed export (a new board revision)
+would otherwise create a second board while the old one keeps feeding the common
+purchases, so the client sends the explicit `targetBoardId` of the board to
+update. When the uploaded file name differs from that board's `sourceFile`, the
+server answers `409` with `details.code = "SOURCE_FILE_MISMATCH"` until the
+request also carries `renameSourceFile`; on success `sourceFile` is overwritten
+with the new name. An incoming name that already belongs to another board is
+rejected with `details.code = "SOURCE_FILE_TAKEN"`.
 
 ## `BomLine`
 

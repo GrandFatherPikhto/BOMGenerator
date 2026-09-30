@@ -43,13 +43,17 @@ sequenceDiagram
     participant SVC as importService
     participant DB as MongoDB
 
-    UI->>API: POST /api/boards/import (multipart: file, name, flags)
-    API->>SVC: importCsv({buffer, fileName, name, flags})
+    UI->>API: POST /api/boards/import (multipart: file, name, flags, targetBoardId, renameSourceFile)
+    API->>SVC: importCsv({buffer, fileName, name, flags, targetBoardId, renameSourceFile})
     SVC->>SVC: parse CSV by column names (UTF-8/BOM)
     SVC->>SVC: drop DNP / Exclude-from-BOM rows
     SVC->>SVC: aggregate rows by matchKey (sum qty, join references)
-    SVC->>DB: find Board by sourceFile
-    alt board exists
+    SVC->>DB: resolve Board by targetBoardId (or by sourceFile)
+    alt target with a different remembered file name and no renameSourceFile
+        SVC-->>API: 409 SOURCE_FILE_MISMATCH
+    else name owned by another board
+        SVC-->>API: 409 SOURCE_FILE_TAKEN
+    else board exists
         SVC->>DB: update name, keep manual fields
     else new board
         SVC->>DB: create Board
@@ -70,6 +74,10 @@ Key points:
 - Hand-filled `productId`, `common`, `packsOverride` and `shippingCost` are
   never touched by a re-import.
 - Rows absent from the new file are deleted.
+- `sourceFile` is the re-import key and is refreshed to the uploaded name. A
+  renamed file must name its target board (`targetBoardId`); without a matching
+  `renameSourceFile` confirmation the server refuses with `409`, so a renamed
+  export can no longer silently create a duplicate board.
 
 ## Grouping and calculated columns
 

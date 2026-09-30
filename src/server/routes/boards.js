@@ -61,6 +61,8 @@ router.post(
       name: req.body.name,
       excludeDnp: parseOptionalBool(req.body.excludeDnp),
       excludeFromBom: parseOptionalBool(req.body.excludeFromBom),
+      targetBoardId: req.body.targetBoardId,
+      renameSourceFile: parseOptionalBool(req.body.renameSourceFile),
     });
     res.json({
       board: serializeBoard(result.board),

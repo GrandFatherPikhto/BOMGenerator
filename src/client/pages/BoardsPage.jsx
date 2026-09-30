@@ -46,8 +46,20 @@ export default function BoardsPage() {
     load();
   }, [load]);
 
-  async function handleImport({ file, name, excludeDnp, excludeFromBom }) {
-    const result = await api.boards.import(file, name, { excludeDnp, excludeFromBom });
+  async function handleImport({
+    file,
+    name,
+    excludeDnp,
+    excludeFromBom,
+    targetBoardId,
+    renameSourceFile,
+  }) {
+    const result = await api.boards.import(file, name, {
+      excludeDnp,
+      excludeFromBom,
+      targetBoardId,
+      renameSourceFile,
+    });
     setImportOpen(false);
     setNotice(
       `Импорт «${result.board.name}»: добавлено ${result.summary.added}, ` +
@@ -192,6 +204,7 @@ export default function BoardsPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onSubmit={handleImport}
+        boards={boards}
       />
       <Snackbar
         open={Boolean(notice)}
