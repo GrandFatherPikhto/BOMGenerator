@@ -9,6 +9,7 @@ import BoardPage from './pages/BoardPage.jsx';
 import BoardsPage from './pages/BoardsPage.jsx';
 import CategoriesPage from './pages/CategoriesPage.jsx';
 import CommonPurchasesPage from './pages/CommonPurchasesPage.jsx';
+import FootprintsPage from './pages/FootprintsPage.jsx';
 import ManualPage from './pages/ManualPage.jsx';
 import PurchasesPage from './pages/PurchasesPage.jsx';
 import SellersPage from './pages/SellersPage.jsx';
@@ -20,6 +21,7 @@ const TABS = [
   { label: 'Общие закупки', value: '/common', to: '/common' },
   { label: 'Докупить', value: '/manual', to: '/manual' },
   { label: 'Продавцы/Товары', value: '/sellers', to: '/sellers' },
+  { label: 'Посадочные места', value: '/footprints', to: '/footprints' },
   { label: 'Категории разбора', value: '/categories', to: '/categories' },
   { label: 'Настройки', value: '/settings', to: '/settings' },
 ];
@@ -93,6 +95,7 @@ export default function App() {
           <Route path="/manual" element={<ManualPage />} />
           <Route path="/common" element={<CommonPurchasesPage />} />
           <Route path="/sellers" element={<SellersPage />} />
+          <Route path="/footprints" element={<FootprintsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

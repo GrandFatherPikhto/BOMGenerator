@@ -154,6 +154,21 @@ returns a readable message naming the offending pattern.
 | `shippingCost` | Number \| null | Hand-entered delivery (`null` = the product's default) |
 | `notPurchased` | Boolean | "Не закупается": left out of the aggregate totals |
 
+## `GroupedFootprint`
+
+One document per footprint whose purchase positions are collapsed by footprint
+only (a checkbox on the "Посадочные места" screen). The list is global — shared
+by every user — and lands in the database dump/restore automatically.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `footprint` | String | **Unique**, required; normalised key (see `src/shared/footprintGroup.js`) |
+
+When a footprint is marked, "Закупки → Все" and "Общие закупки" aggregate every
+position that shares it into one row (the value/name is ignored); the board tab
+is not affected. A grouped row edits every position it stands for at once — in
+bulk.
+
 ## Calculated columns
 
 The server sends the numbers ready-made (no formulas on the client):

@@ -131,5 +131,16 @@ export const api = {
     list: (mode = 'merged') => request(`/common-purchases?mode=${mode}`),
     setOverride: (payload) =>
       request('/common-purchases', { method: 'PUT', body: payload }),
+    // One change applied to every position of a footprint-grouped row.
+    setOverrideBulk: (matchKeys, changes) =>
+      request('/common-purchases/bulk', {
+        method: 'PUT',
+        body: { matchKeys, changes },
+      }),
+  },
+  footprints: {
+    list: () => request('/footprints'),
+    setGrouped: (footprint, grouped) =>
+      request('/footprints', { method: 'PUT', body: { footprint, grouped } }),
   },
 };

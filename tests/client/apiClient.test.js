@@ -132,6 +132,29 @@ describe('apiClient', () => {
     });
   });
 
+  it('toggles the footprint grouping flag', async () => {
+    global.fetch.mockResolvedValue(jsonResponse({ footprint: 'r_0603', grouped: true }));
+    await api.footprints.setGrouped('Resistor_SMD:R_0603', true);
+    expect(global.fetch).toHaveBeenCalledWith('/api/footprints', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ footprint: 'Resistor_SMD:R_0603', grouped: true }),
+    });
+  });
+
+  it('sends a bulk common-purchase override', async () => {
+    global.fetch.mockResolvedValue(jsonResponse([]));
+    await api.commonPurchases.setOverrideBulk(['mk1', 'mk2'], { notPurchased: true });
+    expect(global.fetch).toHaveBeenCalledWith('/api/common-purchases/bulk', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        matchKeys: ['mk1', 'mk2'],
+        changes: { notPurchased: true },
+      }),
+    });
+  });
+
   it('sends multipart form data for the import endpoint', async () => {
     global.fetch.mockResolvedValue(jsonResponse({ board: { id: '1' } }));
     const file = new File(['Reference,Qty\nR1,1'], 'board.csv', {

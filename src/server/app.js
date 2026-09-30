@@ -10,6 +10,7 @@ import authRouter from './routes/auth.js';
 import boardsRouter from './routes/boards.js';
 import categoriesRouter from './routes/categories.js';
 import commonPurchasesRouter from './routes/commonPurchases.js';
+import footprintsRouter from './routes/footprints.js';
 import productsRouter from './routes/products.js';
 import sellersRouter from './routes/sellers.js';
 import settingsRouter from './routes/settings.js';
@@ -81,6 +82,7 @@ export function createApp() {
   app.use('/api/categories', requireAuth, categoriesRouter);
   app.use('/api/settings', requireAuth, settingsRouter);
   app.use('/api/common-purchases', requireAuth, commonPurchasesRouter);
+  app.use('/api/footprints', requireAuth, footprintsRouter);
   app.use('/api/ui-state', requireAuth, uiStateRouter);
 
   // Serve the built client in production.

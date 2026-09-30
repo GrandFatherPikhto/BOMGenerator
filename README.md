@@ -58,6 +58,11 @@ kept as git-ignored local working documents.
 - **Common purchases**: virtual aggregation of every row marked `Общие` across
   all boards (accounting for each board's quantity), in `merged` or
   `by_board` modes. Product/packages/shipping set here survive re-imports.
+- **Grouping by footprint**: the "Посадочные места" screen lists every footprint
+  with a checkbox. A marked footprint is summed by footprint only (value/name
+  ignored) on "Закупки → Все" and "Общие закупки"; the names behind the row are
+  revealed below it and one edit applies to every position at once. The board tab
+  is unaffected.
 - **"Не закупается"**: a position can be marked as not purchased in the "Закупки"
   tables (including "Все"), "Общие закупки" and "Докупить". Such rows are left
   out of the totals (and of the aggregated purchase). The filter bar offers a
@@ -171,6 +176,9 @@ the Python project) and creates the "Докупить" service board.
   that shop and returns the table to the shop mode. A product
   category is picked from a dropdown built from the categories already typed and
   the "Категории разбора" names, and a new one can still be typed.
+- **Посадочные места** — a summary of the footprints of the enabled boards
+  (positions, boards, "Итого") with a "Группировать по посадочному месту"
+  checkbox.
 - **Категории разбора** — CRUD table; regex errors are shown in the form before
   saving.
 - **Настройки** — default category/sort, subcategory label, DNP/BOM defaults.

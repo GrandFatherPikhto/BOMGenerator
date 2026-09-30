@@ -21,6 +21,7 @@ flowchart TD
     IMP --> BL[(BomLine)]
     CAT[(ParseCategory)] --> AGG[Grouping and calculations]
     ST[(Settings)] --> AGG
+    GF[(GroupedFootprint)] --> AGG
     BL --> AGG
     AGG --> API[Express REST API]
     SP[(SellerProduct)] --> API
@@ -109,15 +110,29 @@ On every board / common-purchases request the API:
 Category and subcategory are recalculated on the fly so that editing a rule in
 the UI is reflected on every board immediately, without a data migration.
 
+## Footprint grouping
+
+A footprint marked on the "Посадочные места" screen (persisted in
+`GroupedFootprint`, keyed by the normalised footprint) changes the grouping of
+the aggregated views: on "Закупки → Все" and "Общие закупки" every position that
+shares that footprint collapses into one row, its value/name ignored. The board
+tab is unaffected — it shows one row per stored line. A grouped row carries the
+`names` behind it (shown as the row detail, like the reference designators on a
+board) and — on the common sheet — the `matchKeys` it stands for, so one edit is
+written to all of them (bulk). A product/shipping/pack value is shown only when
+every position agrees; otherwise the cells read "разные". Empty footprints are
+never grouped.
+
 ## Common purchases
 
 "Common purchases" is virtual: it aggregates every `BomLine` with
-`common: true` from all boards (including "Докупить") by `matchKey`,
-multiplying each contribution by its board's `count`. Only the manual
-product/packages/shipping overrides are stored, in `CommonPurchaseOverride`, keyed by
-`matchKey`, so they survive re-imports and changes in the set of contributing
-boards. Two presentation modes are supported: `merged` (one "нужно всего"
-row) and `by_board` (an extra column per contributing board).
+`common: true` from all boards (including "Докупить") by `matchKey` (or by
+footprint, when marked — see "Footprint grouping"), multiplying each
+contribution by its board's `count`. Only the manual product/packages/shipping
+overrides are stored, in `CommonPurchaseOverride`, keyed by `matchKey`, so they
+survive re-imports and changes in the set of contributing boards. Two
+presentation modes are supported: `merged` (one "нужно всего" row) and
+`by_board` (an extra column per contributing board).
 
 ## Authentication
 

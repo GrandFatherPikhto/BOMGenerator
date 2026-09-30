@@ -190,3 +190,47 @@ test('imported lines cannot have their quantity edited manually', async () => {
     .send({ qty: 99 });
   assert.equal(response.status, 400);
 });
+
+test('a grouped footprint collapses common rows and accepts a bulk override', async () => {
+  const csv = [
+    'Reference,Qty,Value,Footprint',
+    'R1,2,10K,Resistor_SMD:R_0603',
+    'R2,3,100R,Resistor_SMD:R_0603',
+    '',
+  ].join('\n');
+  const response = await request(app)
+    .post('/api/boards/import')
+    .field('name', 'Board A')
+    .attach('file', Buffer.from(csv, 'utf8'), 'Grouped-A.csv');
+  const boardId = response.body.board.id;
+
+  await markCommon(boardId, (line) => line.value === '10K');
+  await markCommon(boardId, (line) => line.value === '100R');
+  await request(app)
+    .put('/api/footprints')
+    .send({ footprint: 'Resistor_SMD:R_0603', grouped: true });
+
+  const common = await request(app).get('/api/common-purchases');
+  const row = findLine(common.body, (line) => line.footprint === 'Resistor_SMD:R_0603');
+  assert.ok(row, 'the grouped common row is present');
+  assert.equal(row.grouped, true);
+  assert.equal(row.totalQty, 5); // 2 + 3
+  assert.equal(row.matchKeys.length, 2);
+  assert.deepEqual(row.names, ['10K', '100R']);
+
+  // One edit lands on every position of the grouped row.
+  const { product } = await createSellerWithProduct(
+    app,
+    { name: 'Mouser' },
+    { packQty: 10, packPrice: 100 },
+  );
+  const bulk = await request(app)
+    .put('/api/common-purchases/bulk')
+    .send({ matchKeys: row.matchKeys, changes: { productId: product.id } });
+  assert.equal(bulk.status, 200);
+
+  const after = await request(app).get('/api/common-purchases');
+  const afterRow = findLine(after.body, (line) => line.footprint === 'Resistor_SMD:R_0603');
+  assert.equal(afterRow.productId, product.id);
+  assert.equal(afterRow.packs, 1); // ceil(5 / 10)
+});

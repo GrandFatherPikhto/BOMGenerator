@@ -172,3 +172,46 @@ test('bulk update requires at least one line id', async () => {
     .send({ lineIds: [], changes: {} });
   assert.equal(response.status, 400);
 });
+
+test('a grouped footprint collapses its values into one row', async () => {
+  const csv = [
+    'Reference,Qty,Value,Footprint',
+    'R1,2,10K,Resistor_SMD:R_0603',
+    'R2,3,100R,Resistor_SMD:R_0603',
+    'C1,1,100 nF,Capacitor_SMD:C_0603',
+    '',
+  ].join('\n');
+  const response = await request(app)
+    .post('/api/boards/import')
+    .field('name', 'Board A')
+    .attach('file', Buffer.from(csv, 'utf8'), 'Grouped-A.csv');
+  const boardId = response.body.board.id;
+  assert.ok(boardId);
+
+  // Not grouped yet: the two resistors stay separate rows.
+  let rows = linesOf(await allView()).filter(
+    (item) => item.footprint === 'Resistor_SMD:R_0603',
+  );
+  assert.equal(rows.length, 2);
+
+  await request(app)
+    .put('/api/footprints')
+    .send({ footprint: 'Resistor_SMD:R_0603', grouped: true });
+
+  rows = linesOf(await allView()).filter(
+    (item) => item.footprint === 'Resistor_SMD:R_0603',
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].grouped, true);
+  assert.equal(rows[0].totalQty, 5); // 2 + 3
+  assert.equal(rows[0].lineIds.length, 2);
+  assert.deepEqual([...rows[0].names].sort(), ['100R', '10K']);
+
+  // The other footprint is untouched.
+  assert.equal(
+    linesOf(await allView()).filter(
+      (item) => item.footprint === 'Capacitor_SMD:C_0603',
+    ).length,
+    1,
+  );
+});

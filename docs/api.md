@@ -200,9 +200,10 @@ mode) that the screens remember between visits.
 | `PATCH` | `/ui-state` | Deep-merge `{ sections: { <name>: { … } } }`, return the whole state |
 
 Only the known sections (`boards`, `purchases`, `common`, `manual`, `sellers`,
-`categories`) and their known, type-checked keys are stored; anything else is
-dropped. The document is keyed by a user id (the implicit default user for now),
-so it becomes per-account once authentication is added.
+`categories`, `productPicker`, `footprints`) and their known, type-checked keys
+are stored; anything else is dropped. The document is keyed by a user id (the
+implicit default user for now), so it becomes per-account once authentication is
+added.
 
 ## Common purchases
 
@@ -210,6 +211,7 @@ so it becomes per-account once authentication is added.
 |--------|------|-------------|
 | `GET` | `/common-purchases?mode=merged\|by_board` | Aggregated rows with calculated columns and totals |
 | `PUT` | `/common-purchases` | Set override `{matchKey, productId?, packsOverride?, shippingCost?, notPurchased?}` |
+| `PUT` | `/common-purchases/bulk` | Same override applied to `{matchKeys, changes}` at once (a footprint-grouped row) |
 | `PUT` | `/common-purchases/:matchKey` | Same, for simple/encoded keys |
 
 `by_board` adds a `byBoard` map to each row (`{"Board A": 2, "Board B": 3}`)
@@ -218,6 +220,23 @@ and a `boardNames` array to the response.
 Only boards with **both** flags on (`enabled` and `inCommon`) contribute here.
 A board can be switched on/off via `PUT /boards/:id` (`enabled`, `inCommon`);
 this is the "common purchases" configurator driven from the "Платы" list.
+
+A row whose footprint is marked for grouping carries `grouped: true`, its
+`matchKeys` (for the bulk edit) and `names` (the values behind the row). The
+`by_board` mode and the totals behave as usual.
+
+## Footprints
+
+Footprints ("посадочные места") whose positions are collapsed by footprint only.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/footprints` | `{ footprints: [{footprint, positions, boards, totalQty, names, grouped}], groupedCount }` |
+| `PUT` | `/footprints` | Set the flag `{footprint, grouped}` (an empty footprint is `400`) |
+
+The list covers the enabled, non-service boards; an empty footprint is skipped
+(it cannot be grouped). `GET /api/boards/all/lines` keeps such rows `grouped:
+true` with their `names` and `lineIds`.
 
 ## Health
 

@@ -75,3 +75,27 @@ test('dump and restore keep ids, dates and references', async () => {
 test('restore rejects a file that is not a dump', async () => {
   await assert.rejects(() => restoreDatabase({}), /collections/);
 });
+
+test('the footprint grouping collection survives the round trip', async () => {
+  const db = mongoose.connection.db;
+  await db.collection('groupedfootprints').deleteMany({});
+  await db.collection('groupedfootprints').insertOne({
+    _id: new mongoose.Types.ObjectId(),
+    footprint: 'r_0603',
+  });
+
+  const dump = JSON.parse(JSON.stringify(await dumpDatabase()));
+  assert.ok(
+    dump.metadata.collections.includes('groupedfootprints'),
+    'the dump enumerates the new collection',
+  );
+
+  // Wipe it, then restore and check the document comes back.
+  await db.collection('groupedfootprints').deleteMany({});
+  await restoreDatabase(dump);
+
+  const restored = await db
+    .collection('groupedfootprints')
+    .findOne({ footprint: 'r_0603' });
+  assert.ok(restored, 'the grouped footprint is restored');
+});

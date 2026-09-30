@@ -5,6 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import {
   getCommonPurchases,
   setCommonOverride,
+  setCommonOverrideBulk,
 } from '../services/commonPurchaseService.js';
 
 const router = Router();
@@ -22,6 +23,19 @@ router.put(
   asyncHandler(async (req, res) => {
     const override = await setCommonOverride(req.body.matchKey, req.body);
     res.json(override);
+  }),
+);
+
+// One override applied to every position of a footprint-grouped row. Registered
+// before `/:matchKey` so "bulk" is not swallowed by the parameter route.
+router.put(
+  '/bulk',
+  asyncHandler(async (req, res) => {
+    const overrides = await setCommonOverrideBulk(
+      req.body?.matchKeys,
+      req.body?.changes ?? {},
+    );
+    res.json(overrides);
   }),
 );
 

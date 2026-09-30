@@ -40,6 +40,12 @@ export {
 export { normalizeOverride, resolvePurchaseTotals } from './purchase.js';
 
 export {
+  normalizeFootprintKey,
+  isGroupedFootprint,
+  buildAggregationKey,
+} from './footprintGroup.js';
+
+export {
   SORT_SPECS,
   PAGE_WIDTHS,
   COMMON_MODES,

@@ -16,6 +16,7 @@ import {
   SellerCell,
   ShippingCell,
 } from './LinesTable.jsx';
+import GroupNames from './GroupNames.jsx';
 import LineFiltersBar, { ROW_MODES_WITHOUT_COMMON } from './LineFiltersBar.jsx';
 
 // Rows that share a component but come from different sources are highlighted:
@@ -97,7 +98,18 @@ export default function AllBoardsPurchasesView({
   const patch = (row) => (changes) => onPatchLines(row.lineIds, changes);
 
   const columns = [
-    { id: 'value', label: 'Наименование' },
+    {
+      id: 'value',
+      label: 'Наименование',
+      render: (row) =>
+        row.grouped ? (
+          <Typography variant="body2" color="text.secondary" fontStyle="italic">
+            Группа по посадочному месту
+          </Typography>
+        ) : (
+          row.value
+        ),
+    },
     { id: 'footprint', label: 'Корпус/Footprint' },
     {
       id: 'boards',
@@ -218,6 +230,11 @@ export default function AllBoardsPurchasesView({
         blocks={visibleBlocks}
         columns={columns}
         resetKey="all"
+        renderDetail={(row) =>
+          row.grouped ? (
+            <GroupNames names={row.names} footprint={row.footprint} />
+          ) : null
+        }
         rowSx={(row) =>
           row.notPurchased
             ? NOT_PURCHASED_ROW_SX

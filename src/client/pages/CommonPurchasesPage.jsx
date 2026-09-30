@@ -22,6 +22,7 @@ import {
   SellerCell,
   ShippingCell,
 } from '../components/LinesTable.jsx';
+import GroupNames from '../components/GroupNames.jsx';
 import LineFiltersBar, {
   EMPTY_LINE_FILTERS,
   ROW_MODES_WITHOUT_COMMON,
@@ -79,7 +80,13 @@ export default function CommonPurchasesPage() {
 
   async function patch(row, changes) {
     try {
-      await api.commonPurchases.setOverride({ matchKey: row.matchKey, ...changes });
+      // A grouped row stands for every position on its footprint: one edit is
+      // written to all of their overrides at once.
+      if (row.grouped && row.matchKeys?.length) {
+        await api.commonPurchases.setOverrideBulk(row.matchKeys, changes);
+      } else {
+        await api.commonPurchases.setOverride({ matchKey: row.matchKey, ...changes });
+      }
       await load();
     } catch (patchError) {
       setError(patchError.message);
@@ -163,7 +170,18 @@ export default function CommonPurchasesPage() {
   }, [page, pageSize, updateUi]);
 
   const columns = [
-    { id: 'value', label: 'Наименование' },
+    {
+      id: 'value',
+      label: 'Наименование',
+      render: (row) =>
+        row.grouped ? (
+          <Typography variant="body2" color="text.secondary" fontStyle="italic">
+            Группа по посадочному месту
+          </Typography>
+        ) : (
+          row.value
+        ),
+    },
     { id: 'footprint', label: 'Корпус/Footprint' },
     { id: 'totalQty', label: 'Нужно всего', align: 'right', sx: { fontWeight: 'bold' } },
   ];
@@ -295,6 +313,11 @@ export default function CommonPurchasesPage() {
             blocks={visibleBlocks}
             columns={columns}
             resetKey={resetKey}
+            renderDetail={(row) =>
+              row.grouped ? (
+                <GroupNames names={row.names} footprint={row.footprint} />
+              ) : null
+            }
             rowSx={(row) =>
               row.notPurchased ? { backgroundColor: '#eeeeee', color: 'text.disabled' } : undefined
             }

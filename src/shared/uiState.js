@@ -17,6 +17,7 @@ export const UI_STATE_SECTIONS = [
   'sellers',
   'categories',
   'productPicker',
+  'footprints',
 ];
 
 const TABS = ['boards', 'all'];
@@ -263,6 +264,31 @@ function normalizeProductPicker(raw) {
   return out;
 }
 
+/**
+ * The "Посадочные места" screen: a free-text footprint filter plus pagination.
+ * The set of grouped footprints itself is data (the `GroupedFootprint`
+ * collection), not UI state.
+ */
+function normalizeFootprints(raw) {
+  if (!isPlainObject(raw)) {
+    return undefined;
+  }
+  const out = {};
+  const filter = asString(raw.filter);
+  if (filter !== undefined) {
+    out.filter = filter;
+  }
+  const page = asInt(raw.page);
+  if (page !== undefined) {
+    out.page = page;
+  }
+  const size = asSizeOrNull(raw.size);
+  if (size !== undefined) {
+    out.size = size;
+  }
+  return out;
+}
+
 /** Sections with a schema. Placeholders keep unknown-but-known sections empty. */
 const SECTION_NORMALIZERS = {
   boards: normalizeBoards,
@@ -272,6 +298,7 @@ const SECTION_NORMALIZERS = {
   manual: (raw) => (isPlainObject(raw) ? {} : undefined),
   categories: (raw) => (isPlainObject(raw) ? {} : undefined),
   productPicker: normalizeProductPicker,
+  footprints: normalizeFootprints,
 };
 
 /** Keep only the known sections, with only their known, type-checked keys. */

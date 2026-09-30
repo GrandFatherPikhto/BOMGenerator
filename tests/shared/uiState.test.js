@@ -141,3 +141,15 @@ test('normalizeSections keeps a valid row mode and drops an unknown one', () => 
     { common: { filters: {} } },
   );
 });
+
+test('normalizeSections keeps the footprints filter, page and size', () => {
+  assert.deepEqual(
+    normalizeSections({
+      footprints: { filter: 'R_06', page: 2, size: 50, nope: 1 },
+    }),
+    { footprints: { filter: 'R_06', page: 2, size: 50 } },
+  );
+  assert.deepEqual(normalizeSections({ footprints: { page: -1, size: 0 } }), {
+    footprints: {},
+  });
+});

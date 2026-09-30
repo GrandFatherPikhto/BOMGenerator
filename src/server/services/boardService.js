@@ -1,8 +1,10 @@
 // Boards, their BOM lines and the computed purchase columns.
 import {
+  buildAggregationKey,
   buildMatchKey,
   chooseDisplay,
   collapseWhitespace,
+  isGroupedFootprint,
   normalizeFootprint,
   parseQty,
   parseValue,
@@ -21,6 +23,7 @@ import { CommonPurchaseOverride } from '../models/CommonPurchaseOverride.js';
 import { Seller } from '../models/Seller.js';
 import { SellerProduct } from '../models/SellerProduct.js';
 import { listRuntimeCategories } from './categoryService.js';
+import { getGroupedFootprintKeys } from './footprintService.js';
 import { classifyLine, groupIntoBlocks, serializeBlocks } from './grouping.js';
 import { getSettings } from './settingsService.js';
 
@@ -305,10 +308,11 @@ export async function getBoardView(boardId) {
  * delivery. "Общие" lines are left to the common-purchases sheet.
  */
 export async function getAllBoardsView() {
-  const [settings, categories, boards] = await Promise.all([
+  const [settings, categories, boards, groupedFootprints] = await Promise.all([
     getSettings(),
     listRuntimeCategories(),
     Board.find().lean(),
+    getGroupedFootprintKeys(),
   ]);
 
   const boardMap = new Map(
@@ -354,13 +358,24 @@ export async function getAllBoardsView() {
     if (!board) {
       continue;
     }
+    const grouped = isGroupedFootprint(groupedFootprints, line.footprint);
     const source = line.productId ? String(line.productId) : '';
-    const key = `${line.matchKey}\u0000${source}`;
+    // A grouped footprint collapses every value/source on it; otherwise the
+    // group stays split by the chosen source (product).
+    const key = grouped
+      ? buildAggregationKey({
+          matchKey: line.matchKey,
+          footprint: line.footprint,
+          grouped: true,
+        })
+      : `${line.matchKey}\u0000${source}`;
     let group = groups.get(key);
     if (!group) {
       group = {
         matchKey: line.matchKey,
-        productId: source || null,
+        grouped,
+        productId: grouped ? null : source || null,
+        products: new Set(),
         footprint: line.footprint ?? '',
         reference: line.reference ?? '',
         totalQty: 0,
@@ -375,6 +390,9 @@ export async function getAllBoardsView() {
         notPurchased: true,
       };
       groups.set(key, group);
+    }
+    if (source) {
+      group.products.add(source);
     }
     const qty = (line.qty ?? 0) * (board.count ?? 1);
     group.totalQty += qty;
@@ -427,7 +445,15 @@ export async function getAllBoardsView() {
       settings,
     );
 
-    const product = group.productId ? productMap.get(group.productId) ?? null : null;
+    // A grouped row shows the product only when every position agrees on it.
+    const effectiveProductId = group.grouped
+      ? group.products.size === 1
+        ? [...group.products][0]
+        : null
+      : group.productId;
+    const product = effectiveProductId
+      ? productMap.get(effectiveProductId) ?? null
+      : null;
     const seller = product ? sellerMap.get(String(product.sellerId)) ?? null : null;
 
     const packsInfo = sharedValue(group.packsOverrides);
@@ -443,6 +469,8 @@ export async function getAllBoardsView() {
 
     rows.push({
       matchKey: group.matchKey,
+      grouped: group.grouped,
+      names: [...new Set(group.displays)].filter(Boolean),
       reference: group.reference,
       value: shown,
       footprint: group.footprint,
@@ -451,9 +479,10 @@ export async function getAllBoardsView() {
       boards: [...group.boards.entries()].map(([id, name]) => ({ id, name })),
       lineIds: group.lineIds,
       hasMultipleSources:
+        !group.grouped &&
         Boolean(group.productId) &&
         (sourcesByMatchKey.get(group.matchKey)?.size ?? 0) >= 2,
-      productId: group.productId,
+      productId: effectiveProductId,
       sellerId: seller ? String(seller._id) : null,
       common: false,
       notPurchased: group.notPurchased,
