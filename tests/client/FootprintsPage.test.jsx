@@ -61,4 +61,15 @@ describe('FootprintsPage', () => {
       ),
     );
   });
+
+  it('clears the search field with the cross button', async () => {
+    render(<FootprintsPage />);
+
+    const field = await screen.findByLabelText('Поиск по посадочному месту');
+    await userEvent.type(field, 'R_0603');
+    expect(field).toHaveValue('R_0603');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Очистить' }));
+    expect(field).toHaveValue('');
+  });
 });

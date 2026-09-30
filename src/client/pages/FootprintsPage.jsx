@@ -13,10 +13,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material';
 
+import ClearableTextField from '../components/ClearableTextField.jsx';
 import { PAGE_SIZE_DEFAULT } from '../components/LinesTable.jsx';
 import Pagination from '../components/Pagination.jsx';
 import { usePagination } from '../hooks/usePagination.js';
@@ -117,7 +117,7 @@ export default function FootprintsPage() {
       </Typography>
 
       <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
-        <TextField
+        <ClearableTextField
           size="small"
           label="Поиск по посадочному месту"
           value={filter}
