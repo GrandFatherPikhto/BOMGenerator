@@ -2,7 +2,7 @@
 // Imported by the server (validation and merge before writing) and by the client
 // (reading a section and merging optimistic patches), so both sides agree on the
 // stored shape, the versioning and the "drop the junk" rules.
-import { COMMON_MODES } from './constants.js';
+import { COMMON_MODES, PRODUCT_PICKER_COLUMNS } from './constants.js';
 import { QTY_OPERATORS } from './lineFilter.js';
 
 /** Bump when the stored shape changes, so older documents can be migrated. */
@@ -16,6 +16,7 @@ export const UI_STATE_SECTIONS = [
   'manual',
   'sellers',
   'categories',
+  'productPicker',
 ];
 
 const TABS = ['boards', 'all'];
@@ -227,6 +228,37 @@ function normalizeSellers(raw) {
   return out;
 }
 
+/**
+ * Visible columns of the product picker dialog. Unknown and duplicated names are
+ * dropped; `name` is always kept so the table never loses its anchor column.
+ */
+function normalizeProductPicker(raw) {
+  if (!isPlainObject(raw)) {
+    return undefined;
+  }
+  const out = {};
+  if ('columns' in raw) {
+    if (!Array.isArray(raw.columns)) {
+      return out;
+    }
+    const columns = [];
+    for (const value of raw.columns) {
+      if (
+        typeof value === 'string' &&
+        PRODUCT_PICKER_COLUMNS.includes(value) &&
+        !columns.includes(value)
+      ) {
+        columns.push(value);
+      }
+    }
+    if (!columns.includes('name')) {
+      columns.unshift('name');
+    }
+    out.columns = columns;
+  }
+  return out;
+}
+
 /** Sections with a schema. Placeholders keep unknown-but-known sections empty. */
 const SECTION_NORMALIZERS = {
   boards: normalizeBoards,
@@ -235,6 +267,7 @@ const SECTION_NORMALIZERS = {
   sellers: normalizeSellers,
   manual: (raw) => (isPlainObject(raw) ? {} : undefined),
   categories: (raw) => (isPlainObject(raw) ? {} : undefined),
+  productPicker: normalizeProductPicker,
 };
 
 /** Keep only the known sections, with only their known, type-checked keys. */

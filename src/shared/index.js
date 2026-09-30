@@ -45,6 +45,8 @@ export {
   REF_MODES,
   NAME_MODES,
   FOOTPRINT_MODES,
+  PRODUCT_PICKER_COLUMNS,
+  PRODUCT_PICKER_DEFAULT_COLUMNS,
 } from './constants.js';
 
 export {

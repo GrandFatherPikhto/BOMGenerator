@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import TableChartIcon from '@mui/icons-material/TableChart';
 import {
   Autocomplete,
   Checkbox,
@@ -16,11 +17,13 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 
 import { ClearButton } from './ClearableTextField.jsx';
 import Pagination from './Pagination.jsx';
+import ProductPickerDialog from './ProductPickerDialog.jsx';
 import SellerLink from './SellerLink.jsx';
 
 const CATEGORY_SX = {
@@ -311,6 +314,8 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
   // The free-text query is kept in state so the cross can also clear a search
   // that has not been confirmed with a product yet.
   const [query, setQuery] = useState('');
+  // The wide-screen alternative to the inline dropdown (see ProductPickerDialog).
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   function clearSearch() {
     setQuery('');
@@ -320,52 +325,71 @@ export function ProductCell({ row, products, sellerFilter, onChange }) {
   }
 
   return (
-    <Stack direction="row" spacing={0.5} alignItems="center">
-      <Autocomplete
-        size="small"
-        options={options}
-        value={selected}
-        inputValue={query}
-        onInputChange={(event, value) => setQuery(value)}
-        onChange={(event, value) => onChange({ productId: value ? value.id : null })}
-        disableClearable
-        getOptionLabel={(option) => option.name}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        filterOptions={(list, state) => {
-          const needle = state.inputValue.trim().toLowerCase();
-          if (!needle) {
-            return list;
-          }
-          return list.filter((product) =>
-            [product.name, product.url, product.sellerName, product.sellerUrl]
-              .filter(Boolean)
-              .some((text) => text.toLowerCase().includes(needle)),
-          );
-        }}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            variant="standard"
-            placeholder="—"
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {(query || selected) && (
-                    <InputAdornment position="end">
-                      <ClearButton title="Очистить поиск товара" onClick={clearSearch} />
-                    </InputAdornment>
-                  )}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            }}
-          />
-        )}
-        sx={{ minWidth: 220 }}
+    <>
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        <Autocomplete
+          size="small"
+          options={options}
+          value={selected}
+          inputValue={query}
+          onInputChange={(event, value) => setQuery(value)}
+          onChange={(event, value) => onChange({ productId: value ? value.id : null })}
+          disableClearable
+          getOptionLabel={(option) => option.name}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          filterOptions={(list, state) => {
+            const needle = state.inputValue.trim().toLowerCase();
+            if (!needle) {
+              return list;
+            }
+            return list.filter((product) =>
+              [product.name, product.url, product.sellerName, product.sellerUrl]
+                .filter(Boolean)
+                .some((text) => text.toLowerCase().includes(needle)),
+            );
+          }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              variant="standard"
+              placeholder="—"
+              InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                  <>
+                    {(query || selected) && (
+                      <InputAdornment position="end">
+                        <ClearButton title="Очистить поиск товара" onClick={clearSearch} />
+                      </InputAdornment>
+                    )}
+                    {params.InputProps.endAdornment}
+                  </>
+                ),
+              }}
+            />
+          )}
+          sx={{ minWidth: 220 }}
+        />
+        <ProductLink product={selected} />
+        <Tooltip title="Таблица товаров">
+          <IconButton
+            size="small"
+            onClick={() => setPickerOpen(true)}
+            aria-label="Таблица товаров"
+          >
+            <TableChartIcon fontSize="inherit" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+      <ProductPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        row={row}
+        products={products}
+        selectedId={row.productId ?? null}
+        onSelect={(productId) => onChange({ productId })}
       />
-      <ProductLink product={selected} />
-    </Stack>
+    </>
   );
 }
 

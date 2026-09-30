@@ -39,6 +39,23 @@ test('normalizeSections coerces types and drops invalid values', () => {
   });
 });
 
+test('normalizeSections keeps only known product-picker columns and drops duplicates', () => {
+  const sections = normalizeSections({
+    productPicker: { columns: ['total', 'nope', 'name', 'total'], extra: 1 },
+  });
+  assert.deepEqual(sections, { productPicker: { columns: ['total', 'name'] } });
+});
+
+test('normalizeSections always keeps the name column in the product picker', () => {
+  const sections = normalizeSections({ productPicker: { columns: ['total'] } });
+  assert.deepEqual(sections, { productPicker: { columns: ['name', 'total'] } });
+});
+
+test('normalizeSections drops a non-array product-picker columns list', () => {
+  const sections = normalizeSections({ productPicker: { columns: 'name' } });
+  assert.deepEqual(sections, { productPicker: {} });
+});
+
 test('normalizeSections keeps a null size and a cleared seller', () => {
   const sections = normalizeSections({
     purchases: { size: null, sellerByBoard: { b1: '' } },
